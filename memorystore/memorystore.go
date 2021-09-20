@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package memorystore provides an in-memory Store exposing the client.Client interface.
 package memorystore
 
 import (
 	"context"
 	"fmt"
+
+	"github.com/onmetal/controller-utils/clientutils"
 	"github.com/onmetal/controller-utils/metautils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -27,11 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
-type key struct {
-	GroupKind schema.GroupKind
-	ObjectKey client.ObjectKey
-}
-
 // Store is an in-memory store implementing client.Client.
 //
 // Caution: Not all features of client.Client are implemented.
@@ -41,19 +39,7 @@ type key struct {
 // e.g. instead of `v1/pods`, `v1/Pod` is returned.
 type Store struct {
 	scheme  *runtime.Scheme
-	entries map[key]client.Object
-}
-
-func (s *Store) keyOf(obj client.Object) (key, error) {
-	gvk, err := apiutil.GVKForObject(obj, s.scheme)
-	if err != nil {
-		return key{}, err
-	}
-
-	return key{
-		GroupKind: gvk.GroupKind(),
-		ObjectKey: client.ObjectKeyFromObject(obj),
-	}, nil
+	entries map[clientutils.ObjectRef]client.Object
 }
 
 // Objects returns all objects that are stored in this store.
@@ -108,7 +94,7 @@ func (s *Store) Create(_ context.Context, obj client.Object, opts ...client.Crea
 		return err
 	}
 
-	key, err := s.keyOf(obj)
+	key, err := clientutils.ObjectRefFromObject(s.scheme, obj)
 	if err != nil {
 		return err
 	}
@@ -117,7 +103,7 @@ func (s *Store) Create(_ context.Context, obj client.Object, opts ...client.Crea
 		return apierrors.NewAlreadyExists(schema.GroupResource{
 			Group:    key.GroupKind.Group,
 			Resource: key.GroupKind.Kind,
-		}, key.ObjectKey.String())
+		}, key.Key.String())
 	}
 
 	s.entries[key] = obj
@@ -126,11 +112,11 @@ func (s *Store) Create(_ context.Context, obj client.Object, opts ...client.Crea
 
 // Get implements client.Get.
 func (s *Store) Get(_ context.Context, objectKey client.ObjectKey, obj client.Object) error {
-	key, err := s.keyOf(obj)
+	key, err := clientutils.ObjectRefFromObject(s.scheme, obj)
 	if err != nil {
 		return err
 	}
-	key.ObjectKey = objectKey
+	key.Key = objectKey
 
 	v, ok := s.entries[key]
 	if !ok {
@@ -223,7 +209,7 @@ func (s *Store) Delete(_ context.Context, obj client.Object, opts ...client.Dele
 		return err
 	}
 
-	key, err := s.keyOf(obj)
+	key, err := clientutils.ObjectRefFromObject(s.scheme, obj)
 	if err != nil {
 		return err
 	}
@@ -232,7 +218,7 @@ func (s *Store) Delete(_ context.Context, obj client.Object, opts ...client.Dele
 		return apierrors.NewNotFound(schema.GroupResource{
 			Group:    key.GroupKind.Group,
 			Resource: key.GroupKind.Kind,
-		}, key.ObjectKey.String())
+		}, key.Key.String())
 	}
 	delete(s.entries, key)
 	return nil
@@ -292,7 +278,7 @@ func (s *Store) Update(_ context.Context, obj client.Object, opts ...client.Upda
 		return err
 	}
 
-	key, err := s.keyOf(obj)
+	key, err := clientutils.ObjectRefFromObject(s.scheme, obj)
 	if err != nil {
 		return err
 	}
@@ -301,7 +287,7 @@ func (s *Store) Update(_ context.Context, obj client.Object, opts ...client.Upda
 		return apierrors.NewNotFound(schema.GroupResource{
 			Group:    key.GroupKind.Group,
 			Resource: key.GroupKind.Kind,
-		}, key.ObjectKey.String())
+		}, key.Key.String())
 	}
 	s.entries[key] = obj
 	return nil
@@ -331,6 +317,6 @@ func (s *Store) RESTMapper() meta.RESTMapper {
 func New(scheme *runtime.Scheme) *Store {
 	return &Store{
 		scheme:  scheme,
-		entries: make(map[key]client.Object),
+		entries: make(map[clientutils.ObjectRef]client.Object),
 	}
 }

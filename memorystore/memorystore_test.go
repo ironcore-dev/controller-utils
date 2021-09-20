@@ -16,6 +16,7 @@ package memorystore_test
 
 import (
 	"context"
+
 	"github.com/onmetal/controller-utils/memorystore"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"

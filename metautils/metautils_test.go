@@ -15,6 +15,8 @@
 package metautils_test
 
 import (
+	"reflect"
+
 	. "github.com/onmetal/controller-utils/metautils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -23,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-	"reflect"
 )
 
 var _ = Describe("Metautils", func() {

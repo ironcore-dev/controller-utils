@@ -17,12 +17,13 @@ package unstructuredutils_test
 import (
 	"bytes"
 	_ "embed"
+	"strings"
+
 	"github.com/onmetal/controller-utils/testdata"
 	. "github.com/onmetal/controller-utils/unstructuredutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
-	"strings"
 )
 
 var _ = Describe("Unstructuredutils", func() {

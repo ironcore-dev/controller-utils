@@ -19,11 +19,12 @@ package clientutils
 import (
 	"context"
 	"fmt"
+	"reflect"
+
 	"github.com/onmetal/controller-utils/unstructuredutils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -177,7 +178,7 @@ func (s *GetRequestSet) Has(item GetRequest) bool {
 	return ok
 }
 
-// Delete deltes the given items from the set, if they were present.
+// Delete deletes the given items from the set, if they were present.
 func (s *GetRequestSet) Delete(items ...GetRequest) {
 	for _, item := range items {
 		switch item.Object.(type) {

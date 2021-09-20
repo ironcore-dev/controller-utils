@@ -15,6 +15,8 @@
 package conditionutils_test
 
 import (
+	"time"
+
 	"github.com/onmetal/controller-utils/conditionutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -23,7 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
-	"time"
 )
 
 var _ = Describe("Condition", func() {

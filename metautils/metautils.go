@@ -16,12 +16,13 @@
 package metautils
 
 import (
+	"reflect"
+	"strings"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	"strings"
 )
 
 // ConvertAndSetList converts the given runtime.Objects into the item type of the list and sets
