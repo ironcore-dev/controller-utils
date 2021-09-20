@@ -166,6 +166,8 @@ func valueHasField(v reflect.Value, name string) bool {
 	return v.FieldByName(name) != (reflect.Value{})
 }
 
+// Accessor allows getting and setting fields from conditions as well as to check on their presence.
+// In addition, it allows complex manipulations on individual conditions and condition slices.
 type Accessor struct {
 	typeField               string
 	statusField             string

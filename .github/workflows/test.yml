@@ -1,4 +1,4 @@
-name: Pull Request Code test
+name: Test
 
 on:
   pull_request:
@@ -6,6 +6,9 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
+  push:
+    branches:
+      - main
 
 jobs:
   checks:

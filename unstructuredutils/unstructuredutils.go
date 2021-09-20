@@ -72,6 +72,11 @@ func Read(r io.Reader) ([]unstructured.Unstructured, error) {
 	}
 }
 
+// UnstructuredSliceToObjectSliceNoCopy transforms the given list of unstructured.Unstructured to a list of
+// client.Object, performing no copy while doing so.
+//
+// When creating the list, the resulting client.Object objects are obtained from having a pointer to the original
+// slice item.
 func UnstructuredSliceToObjectSliceNoCopy(unstructureds []unstructured.Unstructured) []client.Object {
 	if unstructureds == nil {
 		return nil
@@ -83,6 +88,8 @@ func UnstructuredSliceToObjectSliceNoCopy(unstructureds []unstructured.Unstructu
 	return res
 }
 
+// UnstructuredSliceToObjectSlice transforms the given list of unstructured.Unstructured to a list of
+// client.Object, copying the unstructured.Unstructured and using the pointers of them for the resulting client.Object.
 func UnstructuredSliceToObjectSlice(unstructureds []unstructured.Unstructured) []client.Object {
 	if unstructureds == nil {
 		return nil

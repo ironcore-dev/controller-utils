@@ -12,5 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package client contains mocks for controller-runtime's client package.
 //go:generate go run github.com/golang/mock/mockgen -copyright_file ../../../hack/boilerplate.go.txt -package client -destination mocks.go sigs.k8s.io/controller-runtime/pkg/client Client
 package client

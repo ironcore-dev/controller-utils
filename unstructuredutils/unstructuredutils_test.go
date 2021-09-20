@@ -21,50 +21,16 @@ import (
 	. "github.com/onmetal/controller-utils/unstructuredutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	. "github.com/onsi/gomega/gstruct"
 	"strings"
 )
 
 var _ = Describe("Unstructuredutils", func() {
-	var expectedObjs []unstructured.Unstructured
-	setup := func() {
-		expectedObjs = []unstructured.Unstructured{
-			{
-				Object: map[string]interface{}{
-					"apiVersion": "v1",
-					"kind":       "Secret",
-					"metadata": map[string]interface{}{
-						"namespace": "default",
-						"name":      "my-secret",
-					},
-					"stringData": map[string]interface{}{
-						"foo": "bar",
-					},
-				},
-			},
-			{
-				Object: map[string]interface{}{
-					"apiVersion": "v1",
-					"kind":       "ConfigMap",
-					"metadata": map[string]interface{}{
-						"namespace": "kube-system",
-						"name":      "my-configmap",
-					},
-					"data": map[string]interface{}{
-						"baz": "qux",
-					},
-				},
-			},
-		}
-	}
-	setup()
-	BeforeEach(setup)
-
 	Describe("Read", func() {
 		It("should read all objects from the YAML", func() {
 			objs, err := Read(bytes.NewReader(testdata.ObjectsYAML))
 			Expect(err).NotTo(HaveOccurred())
-			Expect(objs).To(Equal(expectedObjs))
+			Expect(objs).To(Equal(testdata.UnstructuredObjects()))
 		})
 
 		It("should error on malformed yaml", func() {
@@ -82,12 +48,42 @@ var _ = Describe("Unstructuredutils", func() {
 		It("should read all objects from the file", func() {
 			objs, err := ReadFile("../testdata/objects.yaml")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(objs).To(Equal(expectedObjs))
+			Expect(objs).To(Equal(testdata.UnstructuredObjects()))
 		})
 
 		It("should error if there is an error opening the file", func() {
 			_, err := ReadFile("nonexistent.yaml")
 			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("UnstructuredSliceToObjectSliceNoCopy", func() {
+		It("should return nil if the unstructureds are nil", func() {
+			Expect(UnstructuredSliceToObjectSliceNoCopy(nil)).To(BeNil())
+		})
+
+		It("should transform the list of unstructureds to objects without copying", func() {
+			uObjs := testdata.UnstructuredObjects()
+			cObjs := UnstructuredSliceToObjectSliceNoCopy(uObjs)
+			Expect(cObjs).To(HaveLen(len(uObjs)))
+			for i := range uObjs {
+				Expect(cObjs[i]).To(Equal(&uObjs[i]))
+			}
+		})
+	})
+
+	Describe("UnstructuredSliceToObjectSlice", func() {
+		It("should return nil if the unstructureds are nil", func() {
+			Expect(UnstructuredSliceToObjectSlice(nil)).To(BeNil())
+		})
+
+		It("should transform the list of unstructureds to objects without copying", func() {
+			uObjs := testdata.UnstructuredObjects()
+			cObjs := UnstructuredSliceToObjectSlice(uObjs)
+			Expect(cObjs).To(HaveLen(len(uObjs)))
+			for i := range uObjs {
+				Expect(cObjs[i]).To(PointTo(Equal(uObjs[i])))
+			}
 		})
 	})
 })
