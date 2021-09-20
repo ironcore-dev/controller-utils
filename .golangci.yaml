@@ -4,3 +4,6 @@ run:
 linters:
   enable:
   - revive
+  - ineffassign
+  - misspell
+  - goimports
