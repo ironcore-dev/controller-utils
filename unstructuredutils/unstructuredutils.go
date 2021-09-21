@@ -17,13 +17,14 @@ package unstructuredutils
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -44,28 +45,29 @@ func ReadFile(filename string) ([]unstructured.Unstructured, error) {
 	return Read(f)
 }
 
-// Read treats io.Reader as an incoming YAML stream and reads all unstructured.Unstructured objects of it.
+// Read treats io.Reader as an incoming YAML or JSON stream and reads all unstructured.Unstructured objects of it.
 //
-// The YAML has to be well-formed multi-document YAML separated with the separator '---'.
+// The document has to be well-formed. For multi-doc YAMLs, '---' is used as separator.
 // Empty sub-documents are filtered from the resulting list.
 func Read(r io.Reader) ([]unstructured.Unstructured, error) {
-	rd := yaml.NewYAMLReader(bufio.NewReader(r))
+	d := yaml.NewYAMLOrJSONDecoder(bufio.NewReader(r), 4096)
 	var objs []unstructured.Unstructured
 	for {
-		data, err := rd.Read()
-		if err != nil {
+		ext := runtime.RawExtension{}
+		if err := d.Decode(&ext); err != nil {
 			if !errors.Is(io.EOF, err) {
-				return nil, fmt.Errorf("error reading YAML: %w", err)
+				return nil, fmt.Errorf("error parsing: %w", err)
 			}
 			return objs, nil
 		}
 
-		if strings.TrimSpace(string(data)) == "" {
+		ext.Raw = bytes.TrimSpace(ext.Raw)
+		if len(ext.Raw) == 0 || bytes.Equal(ext.Raw, []byte("null")) {
 			continue
 		}
 
 		obj := &unstructured.Unstructured{}
-		if _, _, err := scheme.Codecs.UniversalDeserializer().Decode(data, nil, obj); err != nil {
+		if _, _, err := scheme.Codecs.UniversalDeserializer().Decode(ext.Raw, nil, obj); err != nil {
 			return nil, fmt.Errorf("invalid object: %w", err)
 		}
 
