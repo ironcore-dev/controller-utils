@@ -17,6 +17,7 @@ package unstructuredutils_test
 import (
 	"bytes"
 	_ "embed"
+	"path/filepath"
 	"strings"
 
 	"github.com/onmetal/controller-utils/testdata"
@@ -24,6 +25,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var _ = Describe("Unstructuredutils", func() {
@@ -55,6 +57,26 @@ var _ = Describe("Unstructuredutils", func() {
 		It("should error if there is an error opening the file", func() {
 			_, err := ReadFile("nonexistent.yaml")
 			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("ReadFiles", func() {
+		It("should read all objects from the folder", func() {
+			objs, err := ReadFiles("../testdata/*.yaml")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(objs).To(Equal([]unstructured.Unstructured{*testdata.UnstructuredMyConfigMap(), *testdata.UnstructuredSecret(), *testdata.UnstructuredConfigMap()}))
+		})
+
+		It("should empty result and no error if there is no folder presents", func() {
+			objs, err := ReadFiles("nonexistent-folder")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(objs).NotTo(Equal([]unstructured.Unstructured{}))
+		})
+
+		It("should result an ErrBadPattern error if pattern is wrong", func() {
+			_, err := ReadFiles("nonexistent-folder[")
+			Expect(err).Should(Equal(filepath.ErrBadPattern))
+
 		})
 	})
 

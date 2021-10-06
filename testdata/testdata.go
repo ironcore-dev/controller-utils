@@ -98,6 +98,21 @@ func UnstructuredConfigMap() *unstructured.Unstructured {
 	}
 }
 
+func UnstructuredMyConfigMap() *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]interface{}{
+				"name":      "my-config",
+			},
+			"data": map[string]interface{}{
+				"foo": "bar",
+			},
+		},
+	}
+}
+
 func Objects() []client.Object {
 	return []client.Object{Secret(), ConfigMap()}
 }
