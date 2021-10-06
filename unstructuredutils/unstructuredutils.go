@@ -21,7 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,6 +45,32 @@ func ReadFile(filename string) ([]unstructured.Unstructured, error) {
 	}()
 
 	return Read(f)
+}
+
+// FileMatchFunc must match the filename against any specified name based criteria and return true if it matches, otherwise false
+type FileMatchFunc func(d fs.DirEntry) bool
+
+// ReadFiles reads unstructured objects from a folder with the given name (including sub folders)
+// and file name matched within FileMatchFunc.
+func ReadFiles(root string, matchFun FileMatchFunc) ([]unstructured.Unstructured, error) {
+	var objs []unstructured.Unstructured
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, e error) error {
+		if e != nil {
+			return e
+		}
+		if !d.IsDir() && matchFun(d) {
+			uobjs, err := ReadFile(path)
+			if err != nil {
+				return err
+			}
+			objs = append(objs, uobjs...)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return objs, nil
 }
 
 // Read treats io.Reader as an incoming YAML or JSON stream and reads all unstructured.Unstructured objects of it.

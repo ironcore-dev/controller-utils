@@ -17,6 +17,8 @@ package unstructuredutils_test
 import (
 	"bytes"
 	_ "embed"
+	"io/fs"
+	"path/filepath"
 	"strings"
 
 	"github.com/onmetal/controller-utils/testdata"
@@ -54,6 +56,23 @@ var _ = Describe("Unstructuredutils", func() {
 
 		It("should error if there is an error opening the file", func() {
 			_, err := ReadFile("nonexistent.yaml")
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("ReadFiles", func() {
+		It("should read all objects from the folder", func() {
+			objs, err := ReadFiles("../testdata", func(d fs.DirEntry) bool {
+				return filepath.Ext(d.Name()) == ".yaml"
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(objs).To(Equal(testdata.UnstructuredObjects()))
+		})
+
+		It("should error if there is an error opening the folder", func() {
+			_, err := ReadFiles("nonexistent-folder", func(d fs.DirEntry) bool {
+				return !d.IsDir() && filepath.Ext(d.Name()) == ".yaml"
+			})
 			Expect(err).To(HaveOccurred())
 		})
 	})
