@@ -39,5 +39,5 @@ checklicense: ## Check that every file has a license header present.
 	go run github.com/google/addlicense -check -c 'OnMetal authors' **/*.go
 
 .PHONY: check
-check: generate test lint checklicense ## Execute multiple checks.
+check: generate lint addlicense test ## Execute multiple checks.
 
