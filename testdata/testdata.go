@@ -28,6 +28,10 @@ var (
 	// ObjectsYAML is a yaml file containing multiple objects and empty documents.
 	//go:embed objects.yaml
 	ObjectsYAML []byte
+
+	// ConfigMapYAML is a yaml file containing a config map.
+	//go:embed cm.yaml
+	ConfigMapYAML string
 )
 
 func Secret() *corev1.Secret {
