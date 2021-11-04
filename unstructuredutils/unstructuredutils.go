@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,6 +44,24 @@ func ReadFile(filename string) ([]unstructured.Unstructured, error) {
 	}()
 
 	return Read(f)
+}
+
+// ReadFiles reads unstructured objects from a folder with the given name (including sub folders)
+// and file name matched with the pattern.
+func ReadFiles(pattern string) ([]unstructured.Unstructured, error) {
+	var objs []unstructured.Unstructured
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil, err
+	}
+	for _, file := range files {
+		uobjs, err := ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+		objs = append(objs, uobjs...)
+	}
+	return objs, nil
 }
 
 // Read treats io.Reader as an incoming YAML or JSON stream and reads all unstructured.Unstructured objects of it.
