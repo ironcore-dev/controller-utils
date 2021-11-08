@@ -36,7 +36,7 @@ import (
 
 var _ = Describe("Clientutils", func() {
 	const (
-		objectsPath = "../testdata/objects.yaml"
+		objectsPath = "../testdata/bases/objects.yaml"
 	)
 
 	var (
