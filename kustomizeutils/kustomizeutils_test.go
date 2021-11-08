@@ -25,27 +25,12 @@ import (
 	"sigs.k8s.io/kustomize/api/hasher"
 	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/api/resource"
-	"sigs.k8s.io/kustomize/api/types"
 )
 
 var _ = Describe("Kustomizeutils", func() {
 	Describe("BuildKustomization", func() {
 		It("should build the kustomization", func() {
-			resMap, err := BuildKustomization(types.Kustomization{
-				ConfigMapGenerator: []types.ConfigMapArgs{
-					{
-						GeneratorArgs: types.GeneratorArgs{
-							Name: "my-config",
-							KvPairSources: types.KvPairSources{
-								LiteralSources: []string{"foo=bar"},
-							},
-							Options: &types.GeneratorOptions{
-								DisableNameSuffixHash: true,
-							},
-						},
-					},
-				},
-			})
+			resMap, err := RunKustomize("../testdata")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resMap.Size()).To(Equal(1))
 			resources := resMap.Resources()
@@ -60,21 +45,7 @@ var _ = Describe("Kustomizeutils", func() {
 	Describe("BuildKustomizationIntoList", func() {
 		It("should build the kustomization into a list", func() {
 			list := &corev1.ConfigMapList{}
-			Expect(BuildKustomizationIntoList(scheme.Codecs.UniversalDeserializer(), types.Kustomization{
-				ConfigMapGenerator: []types.ConfigMapArgs{
-					{
-						GeneratorArgs: types.GeneratorArgs{
-							Name: "my-config",
-							KvPairSources: types.KvPairSources{
-								LiteralSources: []string{"foo=bar"},
-							},
-							Options: &types.GeneratorOptions{
-								DisableNameSuffixHash: true,
-							},
-						},
-					},
-				},
-			}, list)).To(Succeed())
+			Expect(RunKustomizeIntoList("../testdata", scheme.Codecs.UniversalDeserializer(), list)).To(Succeed())
 			Expect(list.Items).To(ConsistOf(corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "ConfigMap",

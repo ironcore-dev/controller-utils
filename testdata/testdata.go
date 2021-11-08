@@ -26,11 +26,11 @@ import (
 
 var (
 	// ObjectsYAML is a yaml file containing multiple objects and empty documents.
-	//go:embed objects.yaml
+	//go:embed bases/objects.yaml
 	ObjectsYAML []byte
 
 	// ConfigMapYAML is a yaml file containing a config map.
-	//go:embed cm.yaml
+	//go:embed bases/cm.yaml
 	ConfigMapYAML string
 )
 
@@ -104,7 +104,7 @@ func UnstructuredMyConfigMap() *unstructured.Unstructured {
 			"apiVersion": "v1",
 			"kind":       "ConfigMap",
 			"metadata": map[string]interface{}{
-				"name":      "my-config",
+				"name": "my-config",
 			},
 			"data": map[string]interface{}{
 				"foo": "bar",

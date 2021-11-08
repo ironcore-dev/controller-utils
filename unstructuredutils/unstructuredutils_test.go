@@ -49,7 +49,7 @@ var _ = Describe("Unstructuredutils", func() {
 
 	Describe("ReadFile", func() {
 		It("should read all objects from the file", func() {
-			objs, err := ReadFile("../testdata/objects.yaml")
+			objs, err := ReadFile("../testdata/bases/objects.yaml")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(objs).To(Equal(testdata.UnstructuredObjects()))
 		})
@@ -62,7 +62,7 @@ var _ = Describe("Unstructuredutils", func() {
 
 	Describe("ReadFiles", func() {
 		It("should read all objects from the folder", func() {
-			objs, err := ReadFiles("../testdata/*.yaml")
+			objs, err := ReadFiles("../testdata/bases/*.yaml")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(objs).To(Equal([]unstructured.Unstructured{*testdata.UnstructuredMyConfigMap(), *testdata.UnstructuredSecret(), *testdata.UnstructuredConfigMap()}))
 		})

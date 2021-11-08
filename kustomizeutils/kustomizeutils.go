@@ -25,37 +25,23 @@ import (
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/api/resource"
-	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
-	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
-// BuildKustomization is a shorthand for creating an in-memory directory, creating 'kustomization.yaml' with the
-// yaml-encoded contents of the given types.Kustomization in it and running a krusty.Kustomizer on the directory.
-// This is useful for quickly using types from remote repositories via Kustomize.
-func BuildKustomization(kustomization types.Kustomization) (resmap.ResMap, error) {
-	fs := filesys.MakeEmptyDirInMemory()
-	data, err := yaml.Marshal(kustomization)
-	if err != nil {
-		return nil, fmt.Errorf("could not marshal kustomization: %w", err)
-	}
-
-	if err := fs.WriteFile("kustomization.yaml", data); err != nil {
-		return nil, fmt.Errorf("could not write kustomization: %w", err)
-	}
-
+// RunKustomize is a shorthand for running kustomize in a target directory.
+func RunKustomize(dir string) (resmap.ResMap, error) {
 	kustomizer := krusty.MakeKustomizer(krusty.MakeDefaultOptions())
-	return kustomizer.Run(fs, ".")
+	return kustomizer.Run(filesys.MakeFsOnDisk(), dir)
 }
 
-// BuildKustomizationIntoList is a shorthand for BuildKustomization + DecodeResMapIntoList.
-func BuildKustomizationIntoList(decoder runtime.Decoder, kustomization types.Kustomization, into runtime.Object) error {
-	resMap, err := BuildKustomization(kustomization)
+// RunKustomizeIntoList is a shorthand for running kustomize and parsing the result into the given list.
+func RunKustomizeIntoList(dir string, decoder runtime.Decoder, into runtime.Object) error {
+	res, err := RunKustomize(dir)
 	if err != nil {
-		return fmt.Errorf("error building kustomization: %w", err)
+		return fmt.Errorf("error running kustomize: %w", err)
 	}
 
-	if err := DecodeResMapIntoList(decoder, resMap, into); err != nil {
+	if err := DecodeResMapIntoList(decoder, res, into); err != nil {
 		return fmt.Errorf("error decoding resmap into list: %w", err)
 	}
 	return nil
