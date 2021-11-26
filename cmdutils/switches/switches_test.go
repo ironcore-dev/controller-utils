@@ -37,7 +37,7 @@ var _ = Describe("CMD Switches", func() {
 			Expect(s.settings).To(Equal(defaults))
 
 			By("updating settings with *")
-			Expect(s.Set("*")).NotTo(HaveOccurred())
+			Expect(s.Set(DefaultValue)).NotTo(HaveOccurred())
 			Expect(s.settings).To(Equal(defaults))
 		})
 		It("shouldn't reuse default settings", func() {
@@ -59,7 +59,7 @@ var _ = Describe("CMD Switches", func() {
 			}
 
 			By("overriding settings")
-			Expect(s.Set("*,runner-b")).NotTo(HaveOccurred())
+			Expect(s.Set(DefaultValue + ",runner-b")).NotTo(HaveOccurred())
 			Expect(s.settings).ToNot(Equal(defaults))
 			defaults["runner-b"] = true
 			Expect(s.settings).To(Equal(defaults))

@@ -17,12 +17,16 @@
 package switches
 
 import (
+	"encoding/csv"
 	"fmt"
 	"strings"
+
+	"sigs.k8s.io/kustomize/kyaml/sets"
 )
 
 const (
-	defaultValue  = "*"
+	DefaultValue = "*"
+
 	disablePrefix = "-"
 )
 
@@ -39,7 +43,7 @@ func New(settings []string) *Switches {
 	return s
 }
 
-// Disable prepends disablePrefix prefix to a controller name
+// Disable prepends disablePrefix prefix to an item name
 func Disable(name string) string {
 	return disablePrefix + name
 }
@@ -49,33 +53,60 @@ func (s *Switches) String() string {
 }
 
 func (s *Switches) Set(val string) error {
-	s.setSettings(strings.Split(val, ","))
+	var (
+		err      error
+		settings []string
+	)
+
+	if val != "" {
+		stringReader := strings.NewReader(val)
+		csvReader := csv.NewReader(stringReader)
+
+		settings, err = csvReader.Read()
+		if err != nil {
+			return fmt.Errorf("failed to set switches value: %w", err)
+		}
+
+		// Validate that all specified controllers are known
+		for _, v := range settings {
+			trimmed := strings.TrimPrefix(v, disablePrefix)
+			if _, ok := s.settings[trimmed]; trimmed != DefaultValue && !ok {
+				return fmt.Errorf("unknown item: %s", trimmed)
+			}
+		}
+	} else {
+		settings = []string{""}
+	}
+
+	s.setSettings(settings)
 	return nil
 }
 
-// Enabled checks if controller is enabled
+// Enabled checks if item is enabled
 func (s *Switches) Enabled(name string) bool {
 	return s.settings[name]
 }
 
-// All returns names of all controllers set in settings
-func (s *Switches) All() (names []string) {
+// All returns names of all items set in settings
+func (s *Switches) All() sets.String {
+	names := make(sets.String, len(s.settings))
 	for k := range s.settings {
-		names = append(names, k)
+		names.Insert(k)
 	}
 
-	return
+	return names
 }
 
-// DisabledByDefault returns names of all disabled controllers
-func (s *Switches) DisabledByDefault() (names []string) {
+// DisabledByDefault returns names of all disabled items
+func (s *Switches) DisabledByDefault() sets.String {
+	names := make(sets.String)
 	for k, enabled := range s.settings {
 		if !enabled {
-			names = append(names, k)
+			names.Insert(k)
 		}
 	}
 
-	return
+	return names
 }
 
 func (s *Switches) Type() string {
@@ -89,7 +120,7 @@ func (s *Switches) setSettings(settings []string) {
 
 	var isDefault bool
 	for _, v := range settings {
-		if v == defaultValue {
+		if v == DefaultValue {
 			isDefault = true
 			break
 		}
@@ -100,7 +131,7 @@ func (s *Switches) setSettings(settings []string) {
 	}
 
 	for _, v := range settings {
-		if v == defaultValue {
+		if v == DefaultValue {
 			continue
 		}
 		s.settings[strings.TrimPrefix(v, disablePrefix)] = !strings.HasPrefix(v, disablePrefix)
