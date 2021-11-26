@@ -127,7 +127,9 @@ func (s *Switches) setSettings(settings []string) {
 	}
 
 	if !isDefault {
-		s.settings = make(map[string]bool)
+		for k := range s.settings {
+			s.settings[k] = false
+		}
 	}
 
 	for _, v := range settings {
