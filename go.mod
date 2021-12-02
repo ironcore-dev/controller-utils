@@ -11,7 +11,7 @@ require (
 	k8s.io/api v0.22.4
 	k8s.io/apimachinery v0.22.4
 	k8s.io/client-go v0.22.4
-	sigs.k8s.io/controller-runtime v0.10.2
+	sigs.k8s.io/controller-runtime v0.10.3
 	sigs.k8s.io/kustomize/api v0.10.0
 	sigs.k8s.io/kustomize/kyaml v0.12.0
 )
