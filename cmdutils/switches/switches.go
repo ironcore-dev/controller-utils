@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	DefaultValue = "*"
+	All = "*"
 
 	disablePrefix = "-"
 )
@@ -70,7 +70,7 @@ func (s *Switches) Set(val string) error {
 		// Validate that all specified controllers are known
 		for _, v := range settings {
 			trimmed := strings.TrimPrefix(v, disablePrefix)
-			if _, ok := s.settings[trimmed]; trimmed != DefaultValue && !ok {
+			if _, ok := s.settings[trimmed]; trimmed != All && !ok {
 				return fmt.Errorf("unknown item: %s", trimmed)
 			}
 		}
@@ -120,7 +120,7 @@ func (s *Switches) setSettings(settings []string) {
 
 	var isDefault bool
 	for _, v := range settings {
-		if v == DefaultValue {
+		if v == All {
 			isDefault = true
 			break
 		}
@@ -133,7 +133,7 @@ func (s *Switches) setSettings(settings []string) {
 	}
 
 	for _, v := range settings {
-		if v == DefaultValue {
+		if v == All {
 			continue
 		}
 		s.settings[strings.TrimPrefix(v, disablePrefix)] = !strings.HasPrefix(v, disablePrefix)
