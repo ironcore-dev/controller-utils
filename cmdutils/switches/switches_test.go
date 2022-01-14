@@ -16,54 +16,64 @@ package switches
 import (
 	"flag"
 
+	"github.com/spf13/pflag"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/spf13/pflag"
 	"sigs.k8s.io/kustomize/kyaml/sets"
 )
 
 var _ = Describe("CMD Switches", func() {
 	Context("Testing Switches interface", func() {
 		It("should disable runner", func() {
-			s := New([]string{"runner-a", Disable("runner-b")})
+			s := New("runner-a", "runner-b")
+			Expect(s.Set("*,-runner-b")).ToNot(HaveOccurred())
 			Expect(s.Enabled("runner-a")).To(BeTrue())
 			Expect(s.Enabled("runner-b")).To(BeFalse())
 		})
 		It("should return all items", func() {
-			s := New([]string{"runner-a", Disable("runner-b")})
+			s := New("runner-a", "runner-b")
+			Expect(s.Set("*,-runner-b")).ToNot(HaveOccurred())
 
 			expected := make(sets.String)
 			expected.Insert("runner-a", "runner-b")
 			Expect(s.All()).To(Equal(expected))
 		})
+		It("should return all enabled items", func() {
+			s := New("runner-a", Disable("runner-b"))
+
+			expected := make(sets.String)
+			expected.Insert("runner-a")
+			Expect(s.EnabledByDefault()).To(Equal(expected))
+		})
 		It("should return all disabled items", func() {
-			s := New([]string{"runner-a", Disable("runner-b")})
+			s := New("runner-a", Disable("runner-b"))
 
 			expected := make(sets.String)
 			expected.Insert("runner-b")
 			Expect(s.DisabledByDefault()).To(Equal(expected))
 		})
 		It("should return string", func() {
-			s := New([]string{"runner-a", Disable("runner-b")})
-
-			Expect(s.String()).To(Equal("map[runner-a:true runner-b:false]"))
+			s := New("runner-a", "runner-b")
+			Expect(s.Set("*,-runner-b")).ToNot(HaveOccurred())
+			Expect(s.String()).To(Equal("runner-a,-runner-b"))
 		})
 	})
 
 	Context("Testing flag package behavior", func() {
-		It("should keep default settings when no flag is passed", func() {
+		It("should disable all controllers when no flag is passed", func() {
 			fs := flag.NewFlagSet("", flag.ExitOnError)
-			controllers := New([]string{"runner-a", Disable("runner-b"), "runner-c"})
+			controllers := New("runner-a", Disable("runner-b"), "runner-c")
 			fs.Var(controllers, "controllers", "")
 
 			Expect(fs.Parse([]string{})).NotTo(HaveOccurred())
-			Expect(controllers.Enabled("runner-a")).To(BeTrue())
+			Expect(controllers.Enabled("runner-a")).To(BeFalse())
 			Expect(controllers.Enabled("runner-b")).To(BeFalse())
-			Expect(controllers.Enabled("runner-c")).To(BeTrue())
+			Expect(controllers.Enabled("runner-c")).To(BeFalse())
 		})
 		It("should keep default settings when * is passed", func() {
 			fs := flag.NewFlagSet("", flag.ExitOnError)
-			controllers := New([]string{"runner-a", Disable("runner-b"), "runner-c"})
+			controllers := New("runner-a", Disable("runner-b"), "runner-c")
 			fs.Var(controllers, "controllers", "")
 
 			Expect(fs.Parse([]string{"--controllers=*"})).NotTo(HaveOccurred())
@@ -73,7 +83,7 @@ var _ = Describe("CMD Switches", func() {
 		})
 		It("should override default settings", func() {
 			fs := flag.NewFlagSet("", flag.ExitOnError)
-			controllers := New([]string{"runner-a", Disable("runner-b"), "runner-c"})
+			controllers := New("runner-a", Disable("runner-b"), "runner-c")
 			fs.Var(controllers, "controllers", "")
 
 			Expect(fs.Parse([]string{"--controllers=runner-a,-runner-c"})).NotTo(HaveOccurred())
@@ -83,7 +93,7 @@ var _ = Describe("CMD Switches", func() {
 		})
 		It("should override some of default settings", func() {
 			fs := flag.NewFlagSet("", flag.ExitOnError)
-			controllers := New([]string{"runner-a", Disable("runner-b"), "runner-c"})
+			controllers := New("runner-a", Disable("runner-b"), "runner-c")
 			fs.Var(controllers, "controllers", "")
 
 			Expect(fs.Parse([]string{"--controllers=*,-runner-a"})).NotTo(HaveOccurred())
@@ -94,19 +104,19 @@ var _ = Describe("CMD Switches", func() {
 	})
 
 	Context("Testing pflag package behavior", func() {
-		It("should keep default settings when no flag is passed", func() {
+		It("should disable all controllers when no flag is passed", func() {
 			fs := pflag.NewFlagSet("", pflag.ExitOnError)
-			controllers := New([]string{"runner-a", Disable("runner-b"), "runner-c"})
+			controllers := New("runner-a", Disable("runner-b"), "runner-c")
 			fs.Var(controllers, "controllers", "")
 
 			Expect(fs.Parse([]string{})).NotTo(HaveOccurred())
-			Expect(controllers.Enabled("runner-a")).To(BeTrue())
+			Expect(controllers.Enabled("runner-a")).To(BeFalse())
 			Expect(controllers.Enabled("runner-b")).To(BeFalse())
-			Expect(controllers.Enabled("runner-c")).To(BeTrue())
+			Expect(controllers.Enabled("runner-c")).To(BeFalse())
 		})
 		It("should keep default settings when * is passed", func() {
 			fs := pflag.NewFlagSet("", pflag.ExitOnError)
-			controllers := New([]string{"runner-a", Disable("runner-b"), "runner-c"})
+			controllers := New("runner-a", Disable("runner-b"), "runner-c")
 			fs.Var(controllers, "controllers", "")
 
 			Expect(fs.Parse([]string{"--controllers=*"})).NotTo(HaveOccurred())
@@ -116,7 +126,7 @@ var _ = Describe("CMD Switches", func() {
 		})
 		It("should override default settings", func() {
 			fs := pflag.NewFlagSet("", pflag.ExitOnError)
-			controllers := New([]string{"runner-a", Disable("runner-b"), "runner-c"})
+			controllers := New("runner-a", Disable("runner-b"), "runner-c")
 			fs.Var(controllers, "controllers", "")
 
 			Expect(fs.Parse([]string{"--controllers=runner-a,-runner-c"})).NotTo(HaveOccurred())
@@ -126,7 +136,7 @@ var _ = Describe("CMD Switches", func() {
 		})
 		It("should override some of default settings", func() {
 			fs := pflag.NewFlagSet("", pflag.ExitOnError)
-			controllers := New([]string{"runner-a", Disable("runner-b"), "runner-c"})
+			controllers := New("runner-a", Disable("runner-b"), "runner-c")
 			fs.Var(controllers, "controllers", "")
 
 			Expect(fs.Parse([]string{"--controllers=*,-runner-a"})).NotTo(HaveOccurred())
