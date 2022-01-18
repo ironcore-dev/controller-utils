@@ -19,9 +19,10 @@ package switches
 import (
 	"encoding/csv"
 	"fmt"
+	"sort"
 	"strings"
 
-	"sigs.k8s.io/kustomize/kyaml/sets"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -31,15 +32,25 @@ const (
 )
 
 type Switches struct {
+	defaults map[string]bool
 	settings map[string]bool
 }
 
-// New creates an instance of Switches
-func New(settings []string) *Switches {
-	s := &Switches{
+// New creates an instance of Switches and returns the pointer to it
+func New(settings ...string) *Switches {
+	s := Make(settings...)
+	return &s
+}
+
+// Make creates an instance of Switches
+// Same as New but returns copy of a struct, not a pointer
+func Make(settings ...string) Switches {
+	s := Switches{
+		defaults: make(map[string]bool),
 		settings: make(map[string]bool),
 	}
-	s.setSettings(settings)
+
+	s.defaults = s.prepareSettings(settings)
 	return s
 }
 
@@ -49,7 +60,27 @@ func Disable(name string) string {
 }
 
 func (s *Switches) String() string {
-	return fmt.Sprintf("%v", s.settings)
+	var res string
+
+	vals := make([]string, 0, len(s.defaults))
+	for v := range s.defaults {
+		vals = append(vals, v)
+	}
+
+	sort.Strings(vals)
+	for _, v := range vals {
+		if res != "" {
+			res += ","
+		}
+
+		if s.settings[v] {
+			res += v
+		} else {
+			res += "-" + v
+		}
+	}
+
+	return res
 }
 
 func (s *Switches) Set(val string) error {
@@ -70,7 +101,7 @@ func (s *Switches) Set(val string) error {
 		// Validate that all specified controllers are known
 		for _, v := range settings {
 			trimmed := strings.TrimPrefix(v, disablePrefix)
-			if _, ok := s.settings[trimmed]; trimmed != All && !ok {
+			if _, ok := s.defaults[trimmed]; trimmed != All && !ok {
 				return fmt.Errorf("unknown item: %s", trimmed)
 			}
 		}
@@ -78,7 +109,7 @@ func (s *Switches) Set(val string) error {
 		settings = []string{""}
 	}
 
-	s.setSettings(settings)
+	s.settings = s.prepareSettings(settings)
 	return nil
 }
 
@@ -89,7 +120,7 @@ func (s *Switches) Enabled(name string) bool {
 
 // All returns names of all items set in settings
 func (s *Switches) All() sets.String {
-	names := make(sets.String, len(s.settings))
+	names := sets.NewString()
 	for k := range s.settings {
 		names.Insert(k)
 	}
@@ -97,10 +128,22 @@ func (s *Switches) All() sets.String {
 	return names
 }
 
+// EnabledByDefault returns names of all enabled items
+func (s *Switches) EnabledByDefault() sets.String {
+	names := sets.NewString()
+	for k, enabled := range s.defaults {
+		if enabled {
+			names.Insert(k)
+		}
+	}
+
+	return names
+}
+
 // DisabledByDefault returns names of all disabled items
 func (s *Switches) DisabledByDefault() sets.String {
-	names := make(sets.String)
-	for k, enabled := range s.settings {
+	names := sets.NewString()
+	for k, enabled := range s.defaults {
 		if !enabled {
 			names.Insert(k)
 		}
@@ -110,25 +153,22 @@ func (s *Switches) DisabledByDefault() sets.String {
 }
 
 func (s *Switches) Type() string {
-	return "Switches"
+	return "strings"
 }
 
-func (s *Switches) setSettings(settings []string) {
+func (s *Switches) prepareSettings(settings []string) (res map[string]bool) {
+	res = make(map[string]bool)
+
 	if len(settings) == 1 && settings[0] == "" {
 		return
 	}
 
-	var isDefault bool
 	for _, v := range settings {
 		if v == All {
-			isDefault = true
+			for k, v := range s.defaults {
+				res[k] = v
+			}
 			break
-		}
-	}
-
-	if !isDefault {
-		for k := range s.settings {
-			s.settings[k] = false
 		}
 	}
 
@@ -136,6 +176,8 @@ func (s *Switches) setSettings(settings []string) {
 		if v == All {
 			continue
 		}
-		s.settings[strings.TrimPrefix(v, disablePrefix)] = !strings.HasPrefix(v, disablePrefix)
+		res[strings.TrimPrefix(v, disablePrefix)] = !strings.HasPrefix(v, disablePrefix)
 	}
+
+	return
 }
