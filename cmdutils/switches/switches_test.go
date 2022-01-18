@@ -16,11 +16,10 @@ package switches
 import (
 	"flag"
 
-	"github.com/spf13/pflag"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"sigs.k8s.io/kustomize/kyaml/sets"
+	"github.com/spf13/pflag"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var _ = Describe("CMD Switches", func() {
@@ -35,22 +34,19 @@ var _ = Describe("CMD Switches", func() {
 			s := New("runner-a", "runner-b")
 			Expect(s.Set("*,-runner-b")).ToNot(HaveOccurred())
 
-			expected := make(sets.String)
-			expected.Insert("runner-a", "runner-b")
+			expected := sets.NewString("runner-a", "runner-b")
 			Expect(s.All()).To(Equal(expected))
 		})
 		It("should return all enabled items", func() {
 			s := New("runner-a", Disable("runner-b"))
 
-			expected := make(sets.String)
-			expected.Insert("runner-a")
+			expected := sets.NewString("runner-a")
 			Expect(s.EnabledByDefault()).To(Equal(expected))
 		})
 		It("should return all disabled items", func() {
 			s := New("runner-a", Disable("runner-b"))
 
-			expected := make(sets.String)
-			expected.Insert("runner-b")
+			expected := sets.NewString("runner-b")
 			Expect(s.DisabledByDefault()).To(Equal(expected))
 		})
 		It("should return string", func() {

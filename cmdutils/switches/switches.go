@@ -22,7 +22,7 @@ import (
 	"sort"
 	"strings"
 
-	"sigs.k8s.io/kustomize/kyaml/sets"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -59,7 +59,7 @@ func Disable(name string) string {
 	return disablePrefix + name
 }
 
-func (s Switches) String() string {
+func (s *Switches) String() string {
 	var res string
 
 	vals := make([]string, 0, len(s.defaults))
@@ -114,13 +114,13 @@ func (s *Switches) Set(val string) error {
 }
 
 // Enabled checks if item is enabled
-func (s Switches) Enabled(name string) bool {
+func (s *Switches) Enabled(name string) bool {
 	return s.settings[name]
 }
 
 // All returns names of all items set in settings
-func (s Switches) All() sets.String {
-	names := make(sets.String, len(s.settings))
+func (s *Switches) All() sets.String {
+	names := sets.NewString()
 	for k := range s.settings {
 		names.Insert(k)
 	}
@@ -129,8 +129,8 @@ func (s Switches) All() sets.String {
 }
 
 // EnabledByDefault returns names of all enabled items
-func (s Switches) EnabledByDefault() sets.String {
-	names := make(sets.String)
+func (s *Switches) EnabledByDefault() sets.String {
+	names := sets.NewString()
 	for k, enabled := range s.defaults {
 		if enabled {
 			names.Insert(k)
@@ -141,8 +141,8 @@ func (s Switches) EnabledByDefault() sets.String {
 }
 
 // DisabledByDefault returns names of all disabled items
-func (s Switches) DisabledByDefault() sets.String {
-	names := make(sets.String)
+func (s *Switches) DisabledByDefault() sets.String {
+	names := sets.NewString()
 	for k, enabled := range s.defaults {
 		if !enabled {
 			names.Insert(k)
@@ -152,11 +152,11 @@ func (s Switches) DisabledByDefault() sets.String {
 	return names
 }
 
-func (s Switches) Type() string {
+func (s *Switches) Type() string {
 	return "strings"
 }
 
-func (s Switches) prepareSettings(settings []string) (res map[string]bool) {
+func (s *Switches) prepareSettings(settings []string) (res map[string]bool) {
 	res = make(map[string]bool)
 
 	if len(settings) == 1 && settings[0] == "" {
