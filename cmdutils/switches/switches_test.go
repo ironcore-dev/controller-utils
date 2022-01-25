@@ -31,11 +31,18 @@ var _ = Describe("CMD Switches", func() {
 			Expect(s.Enabled("runner-b")).To(BeFalse())
 		})
 		It("should return all items", func() {
-			s := New("runner-a", "runner-b")
+			s := New("runner-a", "runner-b", Disable("runner-c"))
 			Expect(s.Set("*,-runner-b")).ToNot(HaveOccurred())
 
-			expected := sets.NewString("runner-a", "runner-b")
+			expected := sets.NewString("runner-a", "runner-b", "runner-c")
 			Expect(s.All()).To(Equal(expected))
+		})
+		It("should return only active items", func() {
+			s := New("runner-a", "runner-b", Disable("runner-c"))
+			Expect(s.Set("*,-runner-b")).ToNot(HaveOccurred())
+
+			expected := sets.NewString("runner-a")
+			Expect(s.Active()).To(Equal(expected))
 		})
 		It("should return all enabled items", func() {
 			s := New("runner-a", Disable("runner-b"))
