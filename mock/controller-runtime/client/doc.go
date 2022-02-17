@@ -13,5 +13,12 @@
 // limitations under the License.
 
 // Package client contains mocks for controller-runtime's client package.
-//go:generate go run github.com/golang/mock/mockgen -copyright_file ../../../hack/boilerplate.go.txt -package client -destination mocks.go sigs.k8s.io/controller-runtime/pkg/client Client
+//go:generate go run github.com/golang/mock/mockgen -copyright_file ../../../hack/boilerplate.go.txt -package client -destination mocks.go sigs.k8s.io/controller-runtime/pkg/client Client,FieldIndexer
+//go:generate go run github.com/golang/mock/mockgen -copyright_file ../../../hack/boilerplate.go.txt -package client -destination funcs.go github.com/onmetal/controller-utils/mock/controller-runtime/client IndexerFunc
 package client
+
+import "sigs.k8s.io/controller-runtime/pkg/client"
+
+type IndexerFunc interface {
+	Call(object client.Object) []string
+}
