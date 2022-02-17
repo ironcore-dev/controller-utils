@@ -121,8 +121,20 @@ func (s *Switches) Enabled(name string) bool {
 // All returns names of all items set in settings
 func (s *Switches) All() sets.String {
 	names := sets.NewString()
-	for k := range s.settings {
+	for k := range s.defaults {
 		names.Insert(k)
+	}
+
+	return names
+}
+
+// Active returns names of all active items
+func (s *Switches) Active() sets.String {
+	names := sets.NewString()
+	for k, enabled := range s.settings {
+		if enabled {
+			names.Insert(k)
+		}
 	}
 
 	return names
