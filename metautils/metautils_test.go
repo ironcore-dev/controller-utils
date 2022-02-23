@@ -22,9 +22,12 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var _ = Describe("Metautils", func() {
@@ -79,6 +82,92 @@ var _ = Describe("Metautils", func() {
 				&corev1.ConfigMap{},
 				[]runtime.Object{&corev1.Secret{}},
 			)).To(HaveOccurred())
+		})
+	})
+
+	Describe("IsControlledBy", func() {
+		It("should report true if the object is controlled by another", func() {
+			By("making a controlling object")
+			owner := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: corev1.NamespaceDefault,
+					Name:      "owner",
+					UID:       types.UID("owner-uuid"),
+				},
+			}
+
+			By("making an object to be controlled")
+			owned := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: corev1.NamespaceDefault,
+					Name:      "owned",
+					UID:       types.UID("owned-uuid"),
+				},
+			}
+
+			By("setting the controller reference")
+			Expect(controllerutil.SetControllerReference(owner, owned, scheme.Scheme)).To(Succeed())
+
+			By("asserting the object reports as controlled")
+			Expect(IsControlledBy(scheme.Scheme, owner, owned)).To(BeTrue(), "object should be controlled by owner, object: %#v, owner: %#v", owned, owner)
+		})
+
+		It("should report false if the object is not controlled by another", func() {
+			By("making two regular objects")
+			obj1 := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: corev1.NamespaceDefault,
+					Name:      "obj1",
+					UID:       types.UID("obj1-uuid"),
+				},
+			}
+			obj2 := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: corev1.NamespaceDefault,
+					Name:      "obj2",
+					UID:       types.UID("obj2-uuid"),
+				},
+			}
+
+			By("asserting the object does not report as controlled")
+			Expect(IsControlledBy(scheme.Scheme, obj1, obj2)).To(BeFalse(), "object should not be controlled, obj1: %#v, obj2: %#v", obj1, obj2)
+		})
+
+		It("should error if it cannot determine the gvk of an object", func() {
+			By("creating an object whose type is not registered in the default scheme")
+			obj1 := &struct{ corev1.ConfigMap }{
+				ConfigMap: corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: corev1.NamespaceDefault,
+						Name:      "obj1",
+						UID:       types.UID("obj1-uuid"),
+					},
+				},
+			}
+
+			By("making a controlling object")
+			owner := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: corev1.NamespaceDefault,
+					Name:      "owner",
+					UID:       types.UID("owner-uuid"),
+				},
+			}
+
+			By("making a regular object")
+			owned := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: corev1.NamespaceDefault,
+					Name:      "owned",
+					UID:       types.UID("owned-uuid"),
+				},
+			}
+
+			By("setting the controller for owned")
+			Expect(controllerutil.SetControllerReference(owner, owned, scheme.Scheme)).To(Succeed())
+
+			_, err := IsControlledBy(scheme.Scheme, obj1, owned)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })

@@ -16,12 +16,15 @@
 package metautils
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
@@ -67,4 +70,29 @@ func ListElementType(list runtime.Object) (reflect.Type, error) {
 
 	v := reflect.ValueOf(itemsPtr)
 	return v.Type().Elem().Elem(), nil
+}
+
+// IsControlledBy checks if controlled is controlled by owner.
+// An object is considered to be controlled if there is a controller (via metav1.GetControllerOf) whose
+// GVK, name and UID match with the controller object.
+func IsControlledBy(scheme *runtime.Scheme, owner, controlled client.Object) (bool, error) {
+	controller := metav1.GetControllerOf(controlled)
+	if controller == nil {
+		return false, nil
+	}
+
+	gvk, err := apiutil.GVKForObject(owner, scheme)
+	if err != nil {
+		return false, fmt.Errorf("error getting object kinds of owner: %w", err)
+	}
+
+	gv, err := schema.ParseGroupVersion(controller.APIVersion)
+	if err != nil {
+		return false, fmt.Errorf("could not parse controller api version: %w", err)
+	}
+
+	return gvk.GroupVersion() == gv &&
+		controller.Kind == gvk.Kind &&
+		controller.Name == owner.GetName() &&
+		controller.UID == owner.GetUID(), nil
 }
