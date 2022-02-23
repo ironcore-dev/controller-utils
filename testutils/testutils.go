@@ -22,8 +22,8 @@ import (
 
 // EqualWithEquality returns a matcher that determines whether the expected value is equal to an actual
 // value using the supplied semantic.Equalities.
-func EqualWithEquality(equalities semantic.Equalities, expected interface{}) matchers.EqualitiesEqualMatcher {
-	return matchers.EqualitiesEqualMatcher{
+func EqualWithEquality(equalities semantic.Equalities, expected interface{}) *matchers.EqualitiesEqualMatcher {
+	return &matchers.EqualitiesEqualMatcher{
 		Equalities: equalities,
 		Expected:   expected,
 	}
@@ -31,14 +31,14 @@ func EqualWithEquality(equalities semantic.Equalities, expected interface{}) mat
 
 // SemanticEqual returns a matcher that determines whether the expected value is equal to an actual value
 // using equality.Semantic.Equalities.
-func SemanticEqual(expected interface{}) matchers.EqualitiesEqualMatcher {
+func SemanticEqual(expected interface{}) *matchers.EqualitiesEqualMatcher {
 	return EqualWithEquality(semantic.Equalities(equality.Semantic.Equalities), expected)
 }
 
 // DerivativeWithEquality returns a matcher that determines whether the actual value derives from the expected
 // value using the supplied semantic.Equalities.
-func DerivativeWithEquality(equalities semantic.Equalities, expected interface{}) matchers.EqualitiesDerivativeMatcher {
-	return matchers.EqualitiesDerivativeMatcher{
+func DerivativeWithEquality(equalities semantic.Equalities, expected interface{}) *matchers.EqualitiesDerivativeMatcher {
+	return &matchers.EqualitiesDerivativeMatcher{
 		Equalities: equalities,
 		Expected:   expected,
 	}
@@ -46,14 +46,14 @@ func DerivativeWithEquality(equalities semantic.Equalities, expected interface{}
 
 // SemanticDerivative returns a matcher that determines whether the actual value derives from the expected
 // value using equality.Semantic.Equalities.
-func SemanticDerivative(expected interface{}) matchers.EqualitiesDerivativeMatcher {
+func SemanticDerivative(expected interface{}) *matchers.EqualitiesDerivativeMatcher {
 	return DerivativeWithEquality(semantic.Equalities(equality.Semantic.Equalities), expected)
 }
 
 // MatchErrorFunc returns a matcher that determines whether the actual value is an error and matches the supplied
 // function. The name of the function will be dynamically inferred.
-func MatchErrorFunc(f func(err error) bool) matchers.ErrorFuncMatcher {
-	return matchers.ErrorFuncMatcher{
+func MatchErrorFunc(f func(err error) bool) *matchers.ErrorFuncMatcher {
+	return &matchers.ErrorFuncMatcher{
 		Func: f,
 	}
 }
