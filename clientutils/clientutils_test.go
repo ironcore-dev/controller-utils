@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/onmetal/controller-utils/clientutils"
@@ -31,7 +32,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 var _ = Describe("Clientutils", func() {
@@ -557,6 +561,263 @@ var _ = Describe("Clientutils", func() {
 			)
 
 			Expect(DeleteMultipleFromFile(ctx, c, objectsPath)).To(Succeed())
+		})
+	})
+
+	Describe("ListAndFilter", func() {
+		It("should list and filter the objects", func() {
+			cm1 := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: corev1.NamespaceDefault,
+					Name:      "foo",
+				},
+			}
+			cm2 := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: corev1.NamespaceDefault,
+					Name:      "bar",
+				},
+			}
+			cm3 := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: corev1.NamespaceDefault,
+					Name:      "baz",
+				},
+			}
+
+			list := &corev1.ConfigMapList{}
+			c.EXPECT().List(ctx, list).SetArg(1, corev1.ConfigMapList{
+				Items: []corev1.ConfigMap{cm1, cm2, cm3},
+			})
+
+			Expect(ListAndFilter(ctx, c, list, func(obj client.Object) (bool, error) {
+				return strings.HasPrefix(obj.(*corev1.ConfigMap).Name, "b"), nil
+			})).To(Succeed())
+			Expect(list.Items).To(Equal([]corev1.ConfigMap{cm2, cm3}))
+		})
+	})
+
+	Describe("ListAndFilterControlledBy", func() {
+		It("should list the objects controlled by an owner", func() {
+			owner := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "owner",
+					UID:       types.UID("owner-uuid"),
+				},
+			}
+			cm1 := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n1",
+				},
+			}
+			Expect(controllerutil.SetControllerReference(&owner, &cm1, scheme.Scheme)).To(Succeed())
+			cm2 := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n2",
+				},
+			}
+			cm3 := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n3",
+				},
+			}
+			Expect(controllerutil.SetControllerReference(&owner, &cm3, scheme.Scheme)).To(Succeed())
+
+			list := &corev1.ConfigMapList{}
+			gomock.InOrder(
+				c.EXPECT().Scheme().Return(scheme.Scheme),
+				c.EXPECT().List(ctx, list).SetArg(1, corev1.ConfigMapList{
+					Items: []corev1.ConfigMap{cm1, cm2, cm3},
+				}),
+			)
+
+			Expect(ListAndFilterControlledBy(ctx, c, &owner, list)).To(Succeed())
+			Expect(list.Items).To(Equal([]corev1.ConfigMap{cm1, cm3}))
+		})
+	})
+
+	Describe("CreateOrUse", func() {
+		var (
+			cm1, cm2, cm3 corev1.ConfigMap
+		)
+		BeforeEach(func() {
+			cm1 = corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n1",
+				},
+			}
+			cm2 = corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n2",
+				},
+			}
+			cm3 = corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n3",
+				},
+			}
+		})
+
+		It("should use an object if it matches", func() {
+			cm := &corev1.ConfigMap{}
+			res, other, err := CreateOrUse(ctx, c, []client.Object{&cm1, &cm2, &cm3}, cm, func() (bool, error) {
+				return cm.Name == "n3", nil
+			}, func() error {
+				Fail("init should not be called")
+				return nil
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(other).To(Equal([]client.Object{&cm1, &cm2}))
+			Expect(res).To(Equal(CreateOrUseOperationResultUsed))
+			Expect(cm).To(Equal(&cm3))
+		})
+
+		It("should create a new object if it does not match", func() {
+			cm := &corev1.ConfigMap{}
+			c.EXPECT().Create(ctx, cm)
+			res, other, err := CreateOrUse(ctx, c, []client.Object{&cm1, &cm2, &cm3}, cm, func() (bool, error) {
+				return false, nil
+			}, func() error {
+				cm.Name = "n4"
+				return nil
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(other).To(Equal([]client.Object{&cm1, &cm2, &cm3}))
+			Expect(res).To(Equal(CreateOrUseOperationResultCreated))
+			Expect(cm).To(Equal(&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "n4",
+				},
+			}))
+		})
+	})
+
+	Describe("CreateOrUseWithList", func() {
+		var (
+			cm1, cm2, cm3 corev1.ConfigMap
+		)
+		BeforeEach(func() {
+			cm1 = corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n1",
+				},
+			}
+			cm2 = corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n2",
+				},
+			}
+			cm3 = corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n3",
+				},
+			}
+		})
+
+		It("should use an object if it matches", func() {
+			cm := &corev1.ConfigMap{}
+			list := &corev1.ConfigMapList{Items: []corev1.ConfigMap{cm1, cm2, cm3}}
+			res, err := CreateOrUseWithList(ctx, c, list, cm, func() (bool, error) {
+				return cm.Name == "n3", nil
+			}, func() error {
+				Fail("init should not be called")
+				return nil
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(list.Items).To(Equal([]corev1.ConfigMap{cm1, cm2}))
+			Expect(res).To(Equal(CreateOrUseOperationResultUsed))
+			Expect(cm).To(Equal(&cm3))
+		})
+
+		It("should create a new object if it does not match", func() {
+			cm := &corev1.ConfigMap{}
+			list := &corev1.ConfigMapList{Items: []corev1.ConfigMap{cm1, cm2, cm3}}
+			c.EXPECT().Create(ctx, cm)
+			res, err := CreateOrUseWithList(ctx, c, list, cm, func() (bool, error) {
+				return false, nil
+			}, func() error {
+				cm.Name = "n4"
+				return nil
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(list.Items).To(Equal([]corev1.ConfigMap{cm1, cm2, cm3}))
+			Expect(res).To(Equal(CreateOrUseOperationResultCreated))
+			Expect(cm).To(Equal(&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "n4",
+				},
+			}))
+		})
+	})
+
+	Describe("CreateOrUseWithObjectSlicePointer", func() {
+		var (
+			cm1, cm2, cm3 corev1.ConfigMap
+			slice         []corev1.ConfigMap
+		)
+		BeforeEach(func() {
+			cm1 = corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n1",
+				},
+			}
+			cm2 = corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n2",
+				},
+			}
+			cm3 = corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n3",
+				},
+			}
+			slice = []corev1.ConfigMap{cm1, cm2, cm3}
+		})
+
+		It("should use an object if it matches", func() {
+			cm := &corev1.ConfigMap{}
+			res, err := CreateOrUseWithObjectSlicePointer(ctx, c, &slice, cm, func() (bool, error) {
+				return cm.Name == "n3", nil
+			}, func() error {
+				Fail("init should not be called")
+				return nil
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(slice).To(Equal([]corev1.ConfigMap{cm1, cm2}))
+			Expect(res).To(Equal(CreateOrUseOperationResultUsed))
+			Expect(cm).To(Equal(&cm3))
+		})
+
+		It("should create a new object if it does not match", func() {
+			cm := &corev1.ConfigMap{}
+			c.EXPECT().Create(ctx, cm)
+			res, err := CreateOrUseWithObjectSlicePointer(ctx, c, &slice, cm, func() (bool, error) {
+				return false, nil
+			}, func() error {
+				cm.Name = "n4"
+				return nil
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(slice).To(Equal([]corev1.ConfigMap{cm1, cm2, cm3}))
+			Expect(res).To(Equal(CreateOrUseOperationResultCreated))
+			Expect(cm).To(Equal(&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "n4",
+				},
+			}))
 		})
 	})
 })

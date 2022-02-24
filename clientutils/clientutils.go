@@ -21,9 +21,11 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/onmetal/controller-utils/metautils"
 	"github.com/onmetal/controller-utils/unstructuredutils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -383,4 +385,163 @@ func DeleteMultiple(ctx context.Context, c client.Client, objs []client.Object, 
 		}
 	}
 	return nil
+}
+
+// ListAndFilter is a shorthand for doing a client.Client.List followed by filtering the list's elements
+// with the given function.
+func ListAndFilter(ctx context.Context, c client.Client, list client.ObjectList, filterFunc func(object client.Object) (bool, error), opts ...client.ListOption) error {
+	if err := c.List(ctx, list, opts...); err != nil {
+		return err
+	}
+
+	items, err := metautils.ExtractList(list)
+	if err != nil {
+		return fmt.Errorf("error extracting list: %w", err)
+	}
+
+	var filtered []client.Object
+	for _, item := range items {
+		ok, err := filterFunc(item)
+		if err != nil {
+			return err
+		}
+		if ok {
+			item := item
+			filtered = append(filtered, item)
+		}
+	}
+
+	if err := metautils.SetList(list, filtered); err != nil {
+		return fmt.Errorf("error setting list: %w", err)
+	}
+
+	return nil
+}
+
+// ListAndFilterControlledBy is a shorthand for doing a client.List followed by filtering the list's elements
+// using metautils.IsControlledBy.
+func ListAndFilterControlledBy(ctx context.Context, c client.Client, owner client.Object, list client.ObjectList, opts ...client.ListOption) error {
+	scheme := c.Scheme()
+	return ListAndFilter(ctx, c, list, func(object client.Object) (bool, error) {
+		return metautils.IsControlledBy(scheme, owner, object)
+	}, opts...)
+}
+
+func setObject(dst, src client.Object) error {
+	dstV, err := conversion.EnforcePtr(dst)
+	if err != nil {
+		return err
+	}
+
+	srcV, err := conversion.EnforcePtr(src)
+	if err != nil {
+		return err
+	}
+
+	if !srcV.Type().AssignableTo(dstV.Type()) {
+		return fmt.Errorf("cannot assign %T to %T", src, dst)
+	}
+
+	dstV.Set(srcV.Convert(dstV.Type()))
+	return nil
+}
+
+// CreateOrUseOperationResult is the result of a CreateOrUse call.
+type CreateOrUseOperationResult string
+
+const (
+	// CreateOrUseOperationResultUsed indicates that a match has been found and no object was created.
+	CreateOrUseOperationResultUsed CreateOrUseOperationResult = "used"
+	// CreateOrUseOperationResultCreated indicates that no match has been found and a new object was created.
+	CreateOrUseOperationResultCreated CreateOrUseOperationResult = "created"
+	// CreateOrUseOperationResultNone indicates that no match has been found / no object was created.
+	CreateOrUseOperationResultNone CreateOrUseOperationResult = "unchanged"
+)
+
+// CreateOrUse traverses through a slice of objects and tries to find a matching object using matchFunc.
+// If it does, the matching object is set to the object and the function returns the other objects.
+// If it matches multiple times, the winning object is the oldest.
+// If it does not match, initFunc is called and the new object is created.
+func CreateOrUse(ctx context.Context, c client.Client, objects []client.Object, obj client.Object, matchFunc func() (bool, error), initFunc func() error) (CreateOrUseOperationResult, []client.Object, error) {
+	var (
+		base  = obj.DeepCopyObject().(client.Object)
+		best  client.Object
+		other []client.Object
+	)
+	for _, object := range objects {
+		object := object
+		if err := setObject(obj, object); err != nil {
+			return CreateOrUseOperationResultNone, nil, err
+		}
+
+		match, err := matchFunc()
+		if err != nil {
+			return CreateOrUseOperationResultNone, nil, err
+		}
+
+		switch {
+		case match && best == nil:
+			best = object
+		// The older object is better.
+		// Using older objects over newer objects helps avoid creating too many new objects.
+		case match && best.GetCreationTimestamp().Time.After(object.GetCreationTimestamp().Time):
+			other = append(other, best)
+			best = object
+		default:
+			other = append(other, object)
+		}
+	}
+	if best != nil {
+		if err := setObject(obj, best); err != nil {
+			return CreateOrUseOperationResultNone, nil, err
+		}
+		return CreateOrUseOperationResultUsed, other, nil
+	}
+
+	if err := setObject(obj, base); err != nil {
+		return CreateOrUseOperationResultNone, nil, err
+	}
+	if initFunc != nil {
+		if err := initFunc(); err != nil {
+			return CreateOrUseOperationResultNone, nil, err
+		}
+	}
+	if err := c.Create(ctx, obj); err != nil {
+		return CreateOrUseOperationResultNone, nil, err
+	}
+	return CreateOrUseOperationResultCreated, other, nil
+}
+
+// CreateOrUseWithList is a shorthand for using CreateOrUse with a client.ObjectList containing the objects.
+// Caution: In contrast to CreateOrUse, if setting the list elements fails, the unmatched objects are unknown.
+// The operation result will still reflect what happened.
+func CreateOrUseWithList(ctx context.Context, c client.Client, list client.ObjectList, obj client.Object, matchFunc func() (bool, error), initFunc func() error) (CreateOrUseOperationResult, error) {
+	items, err := metautils.ExtractList(list)
+	if err != nil {
+		return CreateOrUseOperationResultNone, err
+	}
+
+	res, items, err := CreateOrUse(ctx, c, items, obj, matchFunc, initFunc)
+	if err != nil {
+		return res, err
+	}
+
+	return res, metautils.SetList(list, items)
+}
+
+// CreateOrUseWithObjectSlicePointer is a shorthand for using CreateOrUse with an object slice containing the objects.
+// Caution: In contrast to CreateOrUse, if setting the slice elements fails, the unmatched objects are unknown.
+// The operation result will still reflect what happened.
+func CreateOrUseWithObjectSlicePointer(ctx context.Context, c client.Client, slicePtr interface{}, obj client.Object, matchFunc func() (bool, error), initFunc func() error) (CreateOrUseOperationResult, error) {
+	items, err := metautils.ExtractObjectSlicePointer(slicePtr)
+	if err != nil {
+		return CreateOrUseOperationResultNone, err
+	}
+
+	res, items, err := CreateOrUse(ctx, c, items, obj, matchFunc, initFunc)
+	if err != nil {
+		return res, err
+	}
+
+	return res, metautils.SetObjectSlice(slicePtr, items)
 }

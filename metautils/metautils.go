@@ -22,6 +22,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -95,4 +96,167 @@ func IsControlledBy(scheme *runtime.Scheme, owner, controlled client.Object) (bo
 		controller.Kind == gvk.Kind &&
 		controller.Name == owner.GetName() &&
 		controller.UID == owner.GetUID(), nil
+}
+
+// FilterControlledBy filters multiple objects by using IsControlledBy on each item.
+func FilterControlledBy(scheme *runtime.Scheme, owner client.Object, objects []client.Object) ([]client.Object, error) {
+	var filtered []client.Object
+	for _, object := range objects {
+		ok, err := IsControlledBy(scheme, owner, object)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			object := object
+			filtered = append(filtered, object)
+		}
+	}
+	return filtered, nil
+}
+
+// ExtractList extracts the items of a list into a slice of client.Object.
+func ExtractList(obj client.ObjectList) ([]client.Object, error) {
+	itemsPtr, err := meta.GetItemsPtr(obj)
+	if err != nil {
+		return nil, err
+	}
+	items, err := conversion.EnforcePtr(itemsPtr)
+	if err != nil {
+		return nil, err
+	}
+	objects, err := extractObjectSlice(items)
+	if err != nil {
+		return nil, fmt.Errorf("%v: %w", obj, err)
+	}
+	return objects, nil
+}
+
+func enforceSlice(obj interface{}) (reflect.Value, error) {
+	v := reflect.ValueOf(obj)
+	if v.Kind() != reflect.Slice {
+		if v.Kind() == reflect.Invalid {
+			return reflect.Value{}, fmt.Errorf("expected slice, but got invalid kind")
+		}
+		return reflect.Value{}, fmt.Errorf("expected slice, but got %v type", v.Type())
+	}
+	return v, nil
+}
+
+func enforceSlicePtr(obj interface{}) (reflect.Value, error) {
+	items, err := conversion.EnforcePtr(obj)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	if _, err := enforceSlice(items.Interface()); err != nil {
+		return reflect.Value{}, err
+	}
+	return items, nil
+}
+
+// ExtractObjectSlice extracts client.Object from a given slice.
+func ExtractObjectSlice(slice interface{}) ([]client.Object, error) {
+	items, err := enforceSlice(slice)
+	if err != nil {
+		return nil, err
+	}
+	return extractObjectSlice(items)
+}
+
+func ExtractObjectSlicePointer(slicePtr interface{}) ([]client.Object, error) {
+	items, err := enforceSlicePtr(slicePtr)
+	if err != nil {
+		return nil, err
+	}
+	return extractObjectSlice(items)
+}
+
+func extractObjectSlice(items reflect.Value) ([]client.Object, error) {
+	list := make([]client.Object, items.Len())
+	for i := range list {
+		raw := items.Index(i)
+		switch item := raw.Interface().(type) {
+		case runtime.RawExtension:
+			switch {
+			case item.Object != nil:
+				var found bool
+				if list[i], found = item.Object.(client.Object); !found {
+					return nil, fmt.Errorf("item[%v]: expected object, got %#v", i, item.Object)
+				}
+			case item.Raw != nil:
+				return nil, fmt.Errorf("item[%v]: expected object, got runtime.RawExtension.Raw", i)
+			default:
+				list[i] = nil
+			}
+		case client.Object:
+			list[i] = item
+		default:
+			var found bool
+			if list[i], found = raw.Addr().Interface().(client.Object); !found {
+				return nil, fmt.Errorf("item[%v]: Expected object, got %#v(%s)", i, raw.Interface(), raw.Kind())
+			}
+		}
+	}
+	return list, nil
+}
+
+// SetObjectSlice sets a slice pointer's values to the given objects.
+func SetObjectSlice(slicePtr interface{}, objects []client.Object) error {
+	items, err := enforceSlicePtr(slicePtr)
+	if err != nil {
+		return err
+	}
+
+	return setObjectSlice(items, objects)
+}
+
+func setObjectSlice(items reflect.Value, objects []client.Object) error {
+	if items.Type() == objectSliceType {
+		items.Set(reflect.ValueOf(objects))
+		return nil
+	}
+
+	slice := reflect.MakeSlice(items.Type(), len(objects), len(objects))
+	for i := range objects {
+		dest := slice.Index(i)
+		if dest.Type() == reflect.TypeOf(runtime.RawExtension{}) {
+			dest = dest.FieldByName("Object")
+		}
+
+		// check to see if you're directly assignable
+		if reflect.TypeOf(objects[i]).AssignableTo(dest.Type()) {
+			dest.Set(reflect.ValueOf(objects[i]))
+			continue
+		}
+
+		src, err := conversion.EnforcePtr(objects[i])
+		if err != nil {
+			return err
+		}
+		if src.Type().AssignableTo(dest.Type()) {
+			dest.Set(src)
+		} else if src.Type().ConvertibleTo(dest.Type()) {
+			dest.Set(src.Convert(dest.Type()))
+		} else {
+			return fmt.Errorf("item[%d]: can't assign or convert %v into %v", i, src.Type(), dest.Type())
+		}
+	}
+	items.Set(slice)
+	return nil
+}
+
+// objectSliceType is the type of a slice of Objects
+var objectSliceType = reflect.TypeOf([]client.Object{})
+
+// SetList sets the items in a client.ObjectList to the given objects.
+func SetList(list client.ObjectList, objects []client.Object) error {
+	itemsPtr, err := meta.GetItemsPtr(list)
+	if err != nil {
+		return err
+	}
+	items, err := conversion.EnforcePtr(itemsPtr)
+	if err != nil {
+		return err
+	}
+	return setObjectSlice(items, objects)
 }
