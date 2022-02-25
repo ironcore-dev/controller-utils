@@ -23,6 +23,7 @@ import (
 
 	"github.com/onmetal/controller-utils/metautils"
 	"github.com/onmetal/controller-utils/unstructuredutils"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/conversion"
@@ -447,23 +448,19 @@ func setObject(dst, src client.Object) error {
 	return nil
 }
 
-// CreateOrUseOperationResult is the result of a CreateOrUse call.
-type CreateOrUseOperationResult string
-
-const (
-	// CreateOrUseOperationResultUsed indicates that a match has been found and no object was created.
-	CreateOrUseOperationResultUsed CreateOrUseOperationResult = "used"
-	// CreateOrUseOperationResultCreated indicates that no match has been found and a new object was created.
-	CreateOrUseOperationResultCreated CreateOrUseOperationResult = "created"
-	// CreateOrUseOperationResultNone indicates that no match has been found / no object was created.
-	CreateOrUseOperationResultNone CreateOrUseOperationResult = "unchanged"
-)
-
-// CreateOrUse traverses through a slice of objects and tries to find a matching object using matchFunc.
-// If it does, the matching object is set to the object and the function returns the other objects.
-// If it matches multiple times, the winning object is the oldest.
-// If it does not match, initFunc is called and the new object is created.
-func CreateOrUse(ctx context.Context, c client.Client, objects []client.Object, obj client.Object, matchFunc func() (bool, error), initFunc func() error) (CreateOrUseOperationResult, []client.Object, error) {
+// CreateOrUseAndPatch traverses through a slice of objects and tries to find a matching object using matchFunc.
+// If it does, the matching object is set to the object, optionally patched and returned.
+// If multiple objects match, the winning object is the oldest.
+// If no object matches, initFunc is called and the new object is created.
+// mutateFunc is optional, if none is specified no mutation will happen.
+func CreateOrUseAndPatch(
+	ctx context.Context,
+	c client.Client,
+	objects []client.Object,
+	obj client.Object,
+	matchFunc func() (bool, error),
+	mutateFunc func() error,
+) (controllerutil.OperationResult, []client.Object, error) {
 	var (
 		base  = obj.DeepCopyObject().(client.Object)
 		best  client.Object
@@ -472,12 +469,12 @@ func CreateOrUse(ctx context.Context, c client.Client, objects []client.Object, 
 	for _, object := range objects {
 		object := object
 		if err := setObject(obj, object); err != nil {
-			return CreateOrUseOperationResultNone, nil, err
+			return controllerutil.OperationResultNone, nil, err
 		}
 
 		match, err := matchFunc()
 		if err != nil {
-			return CreateOrUseOperationResultNone, nil, err
+			return controllerutil.OperationResultNone, nil, err
 		}
 
 		switch {
@@ -494,57 +491,36 @@ func CreateOrUse(ctx context.Context, c client.Client, objects []client.Object, 
 	}
 	if best != nil {
 		if err := setObject(obj, best); err != nil {
-			return CreateOrUseOperationResultNone, nil, err
+			return controllerutil.OperationResultNone, nil, err
 		}
-		return CreateOrUseOperationResultUsed, other, nil
+		baseObj := obj.DeepCopyObject().(client.Object)
+		if mutateFunc != nil {
+			if err := mutateFunc(); err != nil {
+				return controllerutil.OperationResultNone, nil, err
+			}
+		}
+		if equality.Semantic.DeepEqual(baseObj, obj) {
+			return controllerutil.OperationResultNone, other, nil
+		}
+
+		if err := c.Patch(ctx, obj, client.MergeFrom(baseObj)); err != nil {
+			return controllerutil.OperationResultNone, nil, err
+		}
+		return controllerutil.OperationResultUpdated, other, nil
 	}
 
 	if err := setObject(obj, base); err != nil {
-		return CreateOrUseOperationResultNone, nil, err
+		return controllerutil.OperationResultNone, nil, err
 	}
-	if initFunc != nil {
-		if err := initFunc(); err != nil {
-			return CreateOrUseOperationResultNone, nil, err
+	if mutateFunc != nil {
+		if err := mutateFunc(); err != nil {
+			return controllerutil.OperationResultNone, nil, err
 		}
 	}
 	if err := c.Create(ctx, obj); err != nil {
-		return CreateOrUseOperationResultNone, nil, err
+		return controllerutil.OperationResultNone, nil, err
 	}
-	return CreateOrUseOperationResultCreated, other, nil
-}
-
-// CreateOrUseWithList is a shorthand for using CreateOrUse with a client.ObjectList containing the objects.
-// Caution: In contrast to CreateOrUse, if setting the list elements fails, the unmatched objects are unknown.
-// The operation result will still reflect what happened.
-func CreateOrUseWithList(ctx context.Context, c client.Client, list client.ObjectList, obj client.Object, matchFunc func() (bool, error), initFunc func() error) (CreateOrUseOperationResult, error) {
-	items, err := metautils.ExtractList(list)
-	if err != nil {
-		return CreateOrUseOperationResultNone, err
-	}
-
-	res, items, err := CreateOrUse(ctx, c, items, obj, matchFunc, initFunc)
-	if err != nil {
-		return res, err
-	}
-
-	return res, metautils.SetList(list, items)
-}
-
-// CreateOrUseWithObjectSlicePointer is a shorthand for using CreateOrUse with an object slice containing the objects.
-// Caution: In contrast to CreateOrUse, if setting the slice elements fails, the unmatched objects are unknown.
-// The operation result will still reflect what happened.
-func CreateOrUseWithObjectSlicePointer(ctx context.Context, c client.Client, slicePtr interface{}, obj client.Object, matchFunc func() (bool, error), initFunc func() error) (CreateOrUseOperationResult, error) {
-	items, err := metautils.ExtractObjectSlicePointer(slicePtr)
-	if err != nil {
-		return CreateOrUseOperationResultNone, err
-	}
-
-	res, items, err := CreateOrUse(ctx, c, items, obj, matchFunc, initFunc)
-	if err != nil {
-		return res, err
-	}
-
-	return res, metautils.SetObjectSlice(slicePtr, items)
+	return controllerutil.OperationResultCreated, other, nil
 }
 
 // DeleteIfExists deletes the given object, if it exists. It returns any non apierrors.IsNotFound error
