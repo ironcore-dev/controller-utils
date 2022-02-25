@@ -27,6 +27,7 @@ import (
 	"github.com/onmetal/controller-utils/testdata"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +42,7 @@ import (
 var _ = Describe("Clientutils", func() {
 	const (
 		objectsPath = "../testdata/bases/objects.yaml"
+		finalizer   = "my-finalizer"
 	)
 
 	var (
@@ -818,6 +820,130 @@ var _ = Describe("Clientutils", func() {
 					Name: "n4",
 				},
 			}))
+		})
+	})
+
+	Describe("DeleteIfExists", func() {
+		It("should delete the existing object and return true", func() {
+			c.EXPECT().Delete(ctx, cm)
+			existed, err := DeleteIfExists(ctx, c, cm)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(existed).To(BeTrue(), "object should have existed")
+		})
+
+		It("should catch the not-found error when deleting and return false", func() {
+			c.EXPECT().Delete(ctx, cm).Return(apierrors.NewNotFound(schema.GroupResource{}, ""))
+			existed, err := DeleteIfExists(ctx, c, cm)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(existed).To(BeFalse(), "object should not have")
+		})
+
+		It("should forward any unknown errors", func() {
+			expectedErr := fmt.Errorf("custom")
+			c.EXPECT().Delete(ctx, cm).Return(expectedErr)
+			_, err := DeleteIfExists(ctx, c, cm)
+			Expect(err).To(Equal(expectedErr))
+		})
+	})
+
+	Describe("DeleteMultipleIfExist", func() {
+		It("should delete the multiple objects and return the ones that existed", func() {
+			gomock.InOrder(
+				c.EXPECT().Delete(ctx, cm),
+				c.EXPECT().Delete(ctx, secret).Return(apierrors.NewNotFound(schema.GroupResource{}, "")),
+			)
+
+			existed, err := DeleteMultipleIfExist(ctx, c, []client.Object{cm, secret})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(existed).To(Equal([]client.Object{cm}))
+		})
+
+		It("should forward any unknown errors but still return the objects that existed", func() {
+			expectedErr := fmt.Errorf("custom error")
+			gomock.InOrder(
+				c.EXPECT().Delete(ctx, cm),
+				c.EXPECT().Delete(ctx, secret).Return(expectedErr),
+			)
+
+			existed, err := DeleteMultipleIfExist(ctx, c, []client.Object{cm, secret})
+			Expect(err).To(SatisfyAll(
+				HaveOccurred(),
+				WithTransform(func(err error) bool {
+					return errors.Is(err, expectedErr)
+				}, BeTrue()),
+			))
+			Expect(existed).To(Equal([]client.Object{cm}))
+		})
+	})
+
+	Context("Finalizer utilities", func() {
+		var (
+			addFinalizerPatchData    []byte
+			removeFinalizerPatchData []byte
+			cmWithFinalizer          *corev1.ConfigMap
+		)
+		BeforeEach(func() {
+			cmWithFinalizer = cm.DeepCopy()
+			cmWithFinalizer.Finalizers = []string{finalizer}
+
+			var err error
+			addFinalizerPatchData, err = client.MergeFrom(cm).Data(cmWithFinalizer)
+			Expect(err).NotTo(HaveOccurred())
+
+			removeFinalizerPatchData, err = client.MergeFrom(cmWithFinalizer).Data(cm)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		Describe("PatchAddFinalizer", func() {
+			It("should issue a patch adding the finalizer", func() {
+				c.EXPECT().Patch(ctx, cm, mock.MatchedBy(func(p client.Patch) bool {
+					return Expect(p.Data(cm)).To(Equal(addFinalizerPatchData))
+				}))
+				Expect(PatchAddFinalizer(ctx, c, cm, finalizer)).To(Succeed())
+			})
+		})
+
+		Describe("PatchRemoveFinalizer", func() {
+			It("should issue a patch removing the finalizer", func() {
+				c.EXPECT().Patch(ctx, cmWithFinalizer, mock.MatchedBy(func(p client.Patch) bool {
+					return Expect(p.Data(cm)).To(Equal(removeFinalizerPatchData))
+				}))
+				Expect(PatchRemoveFinalizer(ctx, c, cmWithFinalizer, finalizer)).To(Succeed())
+			})
+		})
+
+		Describe("PatchEnsureFinalizer", func() {
+			It("should add the finalizer if it is not present and report that it was modified", func() {
+				c.EXPECT().Patch(ctx, cm, mock.MatchedBy(func(p client.Patch) bool {
+					return Expect(p.Data(cm)).To(Equal(addFinalizerPatchData))
+				}))
+				modified, err := PatchEnsureFinalizer(ctx, c, cm, finalizer)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(modified).To(BeTrue(), "cm should be modified: %v", cm)
+			})
+
+			It("should not add the finalizer if it is already present and report that it was not modified", func() {
+				modified, err := PatchEnsureFinalizer(ctx, c, cmWithFinalizer, finalizer)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(modified).To(BeFalse(), "cm should not be modified")
+			})
+		})
+
+		Describe("PatchEnsureNoFinalizer", func() {
+			It("should remove the finalizer if it is present and report that it was modified", func() {
+				c.EXPECT().Patch(ctx, cmWithFinalizer, mock.MatchedBy(func(p client.Patch) bool {
+					return Expect(p.Data(cmWithFinalizer)).To(Equal(removeFinalizerPatchData))
+				}))
+				modified, err := PatchEnsureNoFinalizer(ctx, c, cmWithFinalizer, finalizer)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(modified).To(BeTrue(), "cm should be modified: %v", cm)
+			})
+
+			It("should not remove the finalizer if it is already not present and report that it was not modified", func() {
+				modified, err := PatchEnsureNoFinalizer(ctx, c, cm, finalizer)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(modified).To(BeFalse(), "cm should not be modified")
+			})
 		})
 	})
 })

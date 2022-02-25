@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // IgnoreAlreadyExists returns nil if the given error matches apierrors.IsAlreadyExists.
@@ -544,4 +545,74 @@ func CreateOrUseWithObjectSlicePointer(ctx context.Context, c client.Client, sli
 	}
 
 	return res, metautils.SetObjectSlice(slicePtr, items)
+}
+
+// DeleteIfExists deletes the given object, if it exists. It returns any non apierrors.IsNotFound error
+// and whether the object actually existed or not.
+func DeleteIfExists(ctx context.Context, c client.Client, obj client.Object, opts ...client.DeleteOption) (existed bool, err error) {
+	if err := c.Delete(ctx, obj, opts...); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
+}
+
+// DeleteMultipleIfExist deletes the given objects, if they exist. It returns any non apierrors.IsNotFound error
+// and any object that existed before issuing the delete request.
+func DeleteMultipleIfExist(ctx context.Context, c client.Client, objs []client.Object, opts ...client.DeleteOption) (existed []client.Object, err error) {
+	for i, obj := range objs {
+		ok, err := DeleteIfExists(ctx, c, obj, opts...)
+		if err != nil {
+			return existed, fmt.Errorf("[object %d]: error deleting %v: %w", i, obj, err)
+		}
+		if ok {
+			obj := obj
+			existed = append(existed, obj)
+		}
+	}
+	return existed, nil
+}
+
+// PatchAddFinalizer issues a patch to add the given finalizer to the given object.
+// The client.Patch method will be called regardless whether the finalizer was already present or not.
+func PatchAddFinalizer(ctx context.Context, c client.Client, obj client.Object, finalizer string) error {
+	baseObj := obj.DeepCopyObject().(client.Object)
+	controllerutil.AddFinalizer(obj, finalizer)
+	return c.Patch(ctx, obj, client.MergeFrom(baseObj))
+}
+
+// PatchRemoveFinalizer issues a patch to remove the given finalizer from the given object.
+// The client.Patch method will be called regardless whether the finalizer was already gone or not.
+func PatchRemoveFinalizer(ctx context.Context, c client.Client, obj client.Object, finalizer string) error {
+	baseObj := obj.DeepCopyObject().(client.Object)
+	controllerutil.RemoveFinalizer(obj, finalizer)
+	return c.Patch(ctx, obj, client.MergeFrom(baseObj))
+}
+
+// PatchEnsureFinalizer checks if the given object has the given finalizer and, if not, issues a patch request
+// to add it. The modified result reports whether the object had to be modified.
+func PatchEnsureFinalizer(ctx context.Context, c client.Client, obj client.Object, finalizer string) (modified bool, err error) {
+	if controllerutil.ContainsFinalizer(obj, finalizer) {
+		return false, nil
+	}
+
+	if err := PatchAddFinalizer(ctx, c, obj, finalizer); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// PatchEnsureNoFinalizer checks if the given object has the given finalizer and, if yes, issues a patch request
+// to remove it. The modified result reports whether the object had to be modified.
+func PatchEnsureNoFinalizer(ctx context.Context, c client.Client, obj client.Object, finalizer string) (modified bool, err error) {
+	if !controllerutil.ContainsFinalizer(obj, finalizer) {
+		return false, nil
+	}
+
+	if err := PatchRemoveFinalizer(ctx, c, obj, finalizer); err != nil {
+		return false, err
+	}
+	return true, nil
 }
