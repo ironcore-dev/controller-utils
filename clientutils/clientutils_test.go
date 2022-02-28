@@ -643,6 +643,24 @@ var _ = Describe("Clientutils", func() {
 		})
 	})
 
+	Describe("IsOlderThan", func() {
+		It("should return true if an object is older than another", func() {
+			cm1 := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					CreationTimestamp: metav1.Unix(100, 0),
+				},
+			}
+			cm2 := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					CreationTimestamp: metav1.Unix(0, 0),
+				},
+			}
+			Expect(IsOlderThan(cm2)(cm1)).To(BeFalse(), "cm1 should not be older than cm1")
+			Expect(IsOlderThan(cm1)(cm2)).To(BeTrue(), "cm2 should be older than cm1")
+			Expect(IsOlderThan(cm1)(cm1)).To(BeFalse(), "cm1 should not be older than itself")
+		})
+	})
+
 	Describe("CreateOrUseAndPatch", func() {
 		var (
 			cm1, cm2, cm3 corev1.ConfigMap
@@ -656,8 +674,9 @@ var _ = Describe("Clientutils", func() {
 			}
 			cm2 = corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "foo",
-					Name:      "n2",
+					CreationTimestamp: metav1.Unix(100, 0),
+					Namespace:         "foo",
+					Name:              "n2",
 				},
 			}
 			cm3 = corev1.ConfigMap{
@@ -683,7 +702,7 @@ var _ = Describe("Clientutils", func() {
 			cm := &corev1.ConfigMap{}
 			res, other, err := CreateOrUseAndPatch(ctx, c, []client.Object{&cm1, &cm2, &cm3}, cm, func() (bool, error) {
 				return cm.Name == "n3", nil
-			}, func() error {
+			}, IsOlderThan(cm), func() error {
 				cm.Annotations = annotations
 				return nil
 			})
@@ -703,7 +722,18 @@ var _ = Describe("Clientutils", func() {
 			cm := &corev1.ConfigMap{}
 			res, other, err := CreateOrUseAndPatch(ctx, c, []client.Object{&cm1, &cm2, &cm3}, cm, func() (bool, error) {
 				return cm.Name == "n3", nil
-			}, nil)
+			}, IsOlderThan(cm), nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(other).To(Equal([]client.Object{&cm1, &cm2}))
+			Expect(res).To(Equal(controllerutil.OperationResultNone))
+			Expect(cm).To(Equal(&cm3))
+		})
+
+		It("should use the older object when multiple objects match", func() {
+			cm := &corev1.ConfigMap{}
+			res, other, err := CreateOrUseAndPatch(ctx, c, []client.Object{&cm1, &cm2, &cm3}, cm, func() (bool, error) {
+				return cm.Name == "n2" || cm.Name == "n3", nil
+			}, IsOlderThan(cm), nil)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(other).To(Equal([]client.Object{&cm1, &cm2}))
 			Expect(res).To(Equal(controllerutil.OperationResultNone))
@@ -715,7 +745,7 @@ var _ = Describe("Clientutils", func() {
 			c.EXPECT().Create(ctx, cm)
 			res, other, err := CreateOrUseAndPatch(ctx, c, []client.Object{&cm1, &cm2, &cm3}, cm, func() (bool, error) {
 				return false, nil
-			}, func() error {
+			}, IsOlderThan(cm), func() error {
 				cm.Name = "n4"
 				return nil
 			})

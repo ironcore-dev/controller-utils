@@ -448,6 +448,13 @@ func setObject(dst, src client.Object) error {
 	return nil
 }
 
+// IsOlderThan returns a function that determines whether an object is older than another.
+func IsOlderThan(obj client.Object) func(other client.Object) (bool, error) {
+	return func(other client.Object) (bool, error) {
+		return obj.GetCreationTimestamp().Time.After(other.GetCreationTimestamp().Time), nil
+	}
+}
+
 // CreateOrUseAndPatch traverses through a slice of objects and tries to find a matching object using matchFunc.
 // If it does, the matching object is set to the object, optionally patched and returned.
 // If multiple objects match, the winning object is the oldest.
@@ -459,6 +466,7 @@ func CreateOrUseAndPatch(
 	objects []client.Object,
 	obj client.Object,
 	matchFunc func() (bool, error),
+	lessFunc func(other client.Object) (bool, error),
 	mutateFunc func() error,
 ) (controllerutil.OperationResult, []client.Object, error) {
 	var (
@@ -477,17 +485,23 @@ func CreateOrUseAndPatch(
 			return controllerutil.OperationResultNone, nil, err
 		}
 
-		switch {
-		case match && best == nil:
-			best = object
-		// The older object is better.
-		// Using older objects over newer objects helps avoid creating too many new objects.
-		case match && best.GetCreationTimestamp().Time.After(object.GetCreationTimestamp().Time):
-			other = append(other, best)
-			best = object
-		default:
-			other = append(other, object)
+		if match {
+			if best == nil {
+				best = object
+				continue
+			}
+
+			less, err := lessFunc(best)
+			if err != nil {
+				return controllerutil.OperationResultNone, nil, err
+			}
+			if !less {
+				other = append(other, best)
+				best = object
+				continue
+			}
 		}
+		other = append(other, object)
 	}
 	if best != nil {
 		if err := setObject(obj, best); err != nil {
