@@ -15,6 +15,7 @@
 package configutils
 
 import (
+	"flag"
 	"os"
 
 	"github.com/onsi/ginkgo/v2"
@@ -24,6 +25,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
+
+func setKubeconfigFlag(kubeconfig string) {
+	ExpectWithOffset(1, flag.CommandLine.Set("kubeconfig", kubeconfig)).To(Succeed())
+}
 
 var _ = ginkgo.Describe("Configutils", func() {
 	ginkgo.Describe("GetConfig", func() {
@@ -76,7 +81,7 @@ var _ = ginkgo.Describe("Configutils", func() {
 			}()
 
 			Expect(clientcmd.WriteToFile(*apiConfig, testFile.Name())).To(Succeed())
-			kubeconfig = testFile.Name()
+			setKubeconfigFlag(testFile.Name())
 
 			loaded, err := GetConfig()
 			Expect(err).NotTo(HaveOccurred())
@@ -105,7 +110,7 @@ var _ = ginkgo.Describe("Configutils", func() {
 			}()
 
 			Expect(clientcmd.WriteToFile(*apiConfig, testFile.Name())).To(Succeed())
-			kubeconfig = testFile.Name()
+			setKubeconfigFlag(testFile.Name())
 
 			loaded, err := GetConfig(Context("other"))
 			Expect(err).NotTo(HaveOccurred())
@@ -113,7 +118,7 @@ var _ = ginkgo.Describe("Configutils", func() {
 		})
 
 		ginkgo.It("should error if the kubeconfig does not exist", func() {
-			kubeconfig = "should definitely not exist - ever"
+			setKubeconfigFlag("should definitely not exist - ever")
 			_, err := GetConfig()
 			Expect(err).To(HaveOccurred())
 		})

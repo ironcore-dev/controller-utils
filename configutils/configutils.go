@@ -25,21 +25,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/utils/pointer"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
-	kubeconfig string
+	log = ctrl.Log.WithName("configutils")
 )
-
-const (
-	RecommendedConfigUsage = "Paths to a kubeconfig. Only required if out-of-cluster."
-)
-
-func init() {
-	// TODO: Fix this to allow double vendoring this library but still register flags on behalf of users
-	flag.StringVar(&kubeconfig, clientcmd.RecommendedConfigPathFlag, "",
-		RecommendedConfigUsage)
-}
 
 // GetConfigOptions are options to supply for a GetConfig call.
 type GetConfigOptions struct {
@@ -105,6 +96,15 @@ func loadConfigWithContext(apiServerURL string, loader clientcmd.ClientConfigLoa
 // test the precedence of loading the config.
 var loadInClusterConfig = rest.InClusterConfig
 
+func getKubeconfigFlag() string {
+	f := flag.CommandLine.Lookup("kubeconfig")
+	if f == nil {
+		panic(fmt.Sprintf("--kubeconfig flag is not defined"))
+	}
+
+	return f.Value.String()
+}
+
 // GetConfig creates a *rest.Config for talking to a Kubernetes API server.
 // Kubeconfig / the '--kubeconfig' flag instruct to use the kubeconfig file at that location.
 // Otherwise, will assume running in cluster and use the cluster provided kubeconfig.
@@ -125,9 +125,11 @@ func GetConfig(opts ...GetConfigOption) (*rest.Config, error) {
 	o := &GetConfigOptions{}
 	o.ApplyOptions(opts)
 
-	kubeconfig := kubeconfig
+	var kubeconfig string
 	if o.Kubeconfig != nil {
 		kubeconfig = *o.Kubeconfig
+	} else {
+		kubeconfig = getKubeconfigFlag()
 	}
 
 	// If a flag is specified with the config location, use that
@@ -154,4 +156,18 @@ func GetConfig(opts ...GetConfigOption) (*rest.Config, error) {
 	}
 
 	return loadConfigWithContext("", loadingRules, o.Context)
+}
+
+// GetConfigOrDie creates a *rest.Config for talking to a Kubernetes apiserver.
+// If Kubeconfig / --kubeconfig is set, will use the kubeconfig file at that location. Otherwise, will assume running
+// in cluster and use the cluster provided kubeconfig.
+//
+// Will log an error and exit if there is an error creating the rest.Config.
+func GetConfigOrDie(opts ...GetConfigOption) *rest.Config {
+	config, err := GetConfig(opts...)
+	if err != nil {
+		log.Error(err, "unable to get kubeconfig")
+		os.Exit(1)
+	}
+	return config
 }
