@@ -26,7 +26,7 @@ import (
 	mockclient "github.com/onmetal/controller-utils/mock/controller-runtime/client"
 	mockclientutils "github.com/onmetal/controller-utils/mock/controller-utils/clientutils"
 	"github.com/onmetal/controller-utils/testdata"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
@@ -66,7 +66,7 @@ var _ = Describe("Clientutils", func() {
 
 		patchProvider *mockclientutils.MockPatchProvider
 	)
-	setup := func() {
+	BeforeEach(func() {
 		ctx = context.Background()
 		ctrl = gomock.NewController(GinkgoT())
 
@@ -104,12 +104,6 @@ var _ = Describe("Clientutils", func() {
 		secretKey = client.ObjectKeyFromObject(secret)
 
 		patchProvider = mockclientutils.NewMockPatchProvider(ctrl)
-	}
-	setup()
-	BeforeEach(setup)
-
-	AfterEach(func() {
-		ctrl.Finish()
 	})
 
 	Describe("IgnoreAlreadyExists", func() {

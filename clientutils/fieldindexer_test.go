@@ -19,7 +19,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	mockclient "github.com/onmetal/controller-utils/mock/controller-runtime/client"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,9 +36,6 @@ var _ = Describe("FieldIndexer", func() {
 	BeforeEach(func() {
 		ctx = context.Background()
 		ctrl = gomock.NewController(GinkgoT())
-	})
-	AfterEach(func() {
-		ctrl.Finish()
 	})
 
 	Context("SharedFieldIndexer", func() {

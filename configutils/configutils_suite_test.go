@@ -1,4 +1,4 @@
-// Copyright 2021 OnMetal authors
+// Copyright 2022 OnMetal authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package memorystore_test
+package configutils
 
 import (
 	"testing"
 
-	. "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-func TestMemorystore(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Memorystore Suite")
+func TestConfigutils(t *testing.T) {
+	RegisterFailHandler(ginkgo.Fail)
+	ginkgo.RunSpecs(t, "Configutils Suite")
 }
