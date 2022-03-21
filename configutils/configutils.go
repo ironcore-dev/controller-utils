@@ -99,7 +99,7 @@ var loadInClusterConfig = rest.InClusterConfig
 func getKubeconfigFlag() string {
 	f := flag.CommandLine.Lookup("kubeconfig")
 	if f == nil {
-		panic(fmt.Sprintf("--kubeconfig flag is not defined"))
+		panic("--kubeconfig flag is not defined")
 	}
 
 	return f.Value.String()
