@@ -651,6 +651,29 @@ func (a *Accessor) findTypeIndex(condSliceV reflect.Value, typ string) (int, err
 	return -1, nil
 }
 
+// FindSliceIndex finds the index of the condition with the given type.
+//
+// If the target type is not found, -1 is returned.
+// FindSliceIndex errors if condSlice is not a slice of structs.
+func (a *Accessor) FindSliceIndex(condSlice interface{}, typ string) (int, error) {
+	v, _, err := enforceStructSlice(condSlice)
+	if err != nil {
+		return 0, err
+	}
+
+	return a.findTypeIndex(v, typ)
+}
+
+// MustFindSliceIndex finds the index of the condition with the given type.
+//
+// If the target type is not found, -1 is returned.
+// MustFindSliceIndex panics if condSlice is not a slice of structs.
+func (a *Accessor) MustFindSliceIndex(condSlice interface{}, typ string) int {
+	idx, err := a.FindSliceIndex(condSlice, typ)
+	utilruntime.Must(err)
+	return idx
+}
+
 // FindSlice finds the condition with the given type from the given slice and updates the target value with it.
 //
 // If the target type is not found, false is returned and the target value is not updated.
@@ -885,6 +908,66 @@ func (u UpdateObservedGeneration) ApplyUpdate(a *Accessor, condPtr interface{}) 
 // UpdateObserved is a shorthand for updating the observed generation from a metav1.Object's generation.
 func UpdateObserved(obj metav1.Object) UpdateObservedGeneration {
 	return UpdateObservedGeneration(obj.GetGeneration())
+}
+
+// UpdateFromCondition updates a condition from a source Condition.
+//
+// If Accessor is set, the ApplyUpdate function will use the Accessor for reading the properties for the source
+// Condition over the one supplied. Otherwise, the Accessor supplied by ApplyUpdate will be used.
+// All properties of the source condition will be transferred to the target condition with the exception of
+// Type, LastTransitionTime and LastUpdateTime.
+type UpdateFromCondition struct {
+	// Accessor is the Accessor to access the Condition.
+	// If unset, the Accessor from ApplyUpdate is used.
+	Accessor *Accessor
+	// Condition is a condition struct. Must not be nil.
+	Condition interface{}
+}
+
+func (u UpdateFromCondition) ApplyUpdate(a *Accessor, condPtr interface{}) error {
+	srcAccessor := u.Accessor
+	if srcAccessor == nil {
+		srcAccessor = a
+	}
+
+	status, err := srcAccessor.Status(u.Condition)
+	if err != nil {
+		return err
+	}
+	if err := a.SetStatus(condPtr, status); err != nil {
+		return err
+	}
+
+	reason, err := srcAccessor.Reason(u.Condition)
+	if err != nil {
+		return err
+	}
+	if err := a.SetReason(condPtr, reason); err != nil {
+		return err
+	}
+
+	message, err := srcAccessor.Message(u.Condition)
+	if err != nil {
+		return err
+	}
+	if err := a.SetMessage(condPtr, message); err != nil {
+		return err
+	}
+
+	ok, err := srcAccessor.HasObservedGeneration(u.Condition)
+	if err != nil {
+		return err
+	}
+	if ok {
+		observedGeneration, err := srcAccessor.ObservedGeneration(u.Condition)
+		if err != nil {
+			return err
+		}
+		if err := a.SetObservedGeneration(condPtr, observedGeneration); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // AccessorOptions are options to create an Accessor.

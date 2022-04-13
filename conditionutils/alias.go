@@ -35,6 +35,14 @@ var (
 	// See Accessor.MustUpdateSlice for more.
 	MustUpdateSlice = DefaultAccessor.MustUpdateSlice
 
+	// FindSliceIndex finds the index of the target condition in the given slice.
+	// See Accessor.FindSliceIndex for more.
+	FindSliceIndex = DefaultAccessor.FindSliceIndex
+
+	// MustFindSliceIndex finds the index of the target condition in the given slice.
+	// See Accessor.MustFindSliceIndex for more.
+	MustFindSliceIndex = DefaultAccessor.MustFindSliceIndex
+
 	// FindSlice finds the target condition in the given slice.
 	// See Accessor.FindSlice for more.
 	FindSlice = DefaultAccessor.FindSlice

@@ -311,6 +311,36 @@ var _ = Describe("Condition", func() {
 					Message:            "Some message",
 				}))
 			})
+
+			It("should apply the fields from the source condition to the target condition", func() {
+				Expect(acc.Update(&deployCond,
+					conditionutils.UpdateFromCondition{
+						Condition: appsv1.DeploymentCondition{
+							Status:  corev1.ConditionFalse,
+							Reason:  "BadDay",
+							Message: "Some message",
+						},
+					},
+				)).To(Succeed())
+				Expect(deployCond).To(Equal(appsv1.DeploymentCondition{
+					Type:               appsv1.DeploymentAvailable,
+					Status:             corev1.ConditionFalse,
+					LastUpdateTime:     metaNow,
+					LastTransitionTime: metaNow,
+					Reason:             "BadDay",
+					Message:            "Some message",
+				}))
+			})
+		})
+
+		Describe("FindSliceIndex", func() {
+			It("should find the target condition index if it's present", func() {
+				Expect(acc.FindSliceIndex([]appsv1.DeploymentCondition{deployCond}, string(appsv1.DeploymentAvailable))).To(Equal(0))
+			})
+
+			It("should not find the target condition index if it's not present", func() {
+				Expect(acc.FindSliceIndex([]appsv1.DeploymentCondition{}, string(appsv1.DeploymentAvailable))).To(Equal(-1))
+			})
 		})
 
 		Describe("FindSlice", func() {
