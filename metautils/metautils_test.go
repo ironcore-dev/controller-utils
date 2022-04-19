@@ -31,6 +31,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+type BadList struct {
+	metav1.ListMeta
+	metav1.TypeMeta
+}
+
+func (b *BadList) DeepCopyObject() runtime.Object {
+	return &BadList{
+		*b.ListMeta.DeepCopy(),
+		b.TypeMeta,
+	}
+}
+
 var _ = Describe("Metautils", func() {
 	Describe("ListElementType", func() {
 		It("should return the element type of an object list", func() {
@@ -230,6 +242,38 @@ var _ = Describe("Metautils", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(items).To(Equal([]client.Object{&cm1, &cm2}))
 		})
+
+		It("should error if it cannot extract a list's items", func() {
+			_, err := ExtractList(&BadList{})
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("MustExtractList", func() {
+		It("should extract a list's items", func() {
+			cm1 := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n1",
+				},
+			}
+			cm2 := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n2",
+				},
+			}
+			cmList := &corev1.ConfigMapList{
+				Items: []corev1.ConfigMap{cm1, cm2},
+			}
+
+			items := MustExtractList(cmList)
+			Expect(items).To(Equal([]client.Object{&cm1, &cm2}))
+		})
+
+		It("should panic if it cannot extract a list's items", func() {
+			Expect(func() { MustExtractList(&BadList{}) }).To(Panic())
+		})
 	})
 
 	Describe("SetList", func() {
@@ -252,6 +296,37 @@ var _ = Describe("Metautils", func() {
 
 			Expect(SetList(cmList, []client.Object{&cm1, &cm2})).To(Succeed())
 			Expect(cmList.Items).To(Equal([]corev1.ConfigMap{cm1, cm2}))
+		})
+
+		It("should error if it cannot set a list's items", func() {
+			Expect(SetList(&BadList{}, nil)).To(HaveOccurred())
+		})
+	})
+
+	Describe("MustSetList", func() {
+		It("should set a list's items", func() {
+			cm1 := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n1",
+				},
+			}
+			cm2 := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "n2",
+				},
+			}
+			cmList := &corev1.ConfigMapList{
+				Items: []corev1.ConfigMap{cm1, cm2},
+			}
+
+			MustSetList(cmList, []client.Object{&cm1, &cm2})
+			Expect(cmList.Items).To(Equal([]corev1.ConfigMap{cm1, cm2}))
+		})
+
+		It("should panic if it cannot set a list's items", func() {
+			Expect(func() { MustSetList(&BadList{}, nil) }).To(Panic())
 		})
 	})
 
@@ -284,6 +359,12 @@ var _ = Describe("Metautils", func() {
 		It("should error if the slice elements cannot be converted to client.Object", func() {
 			_, err := ExtractObjectSlice([]string{"foo", "bar"})
 			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("MustExtractObjectSlice", func() {
+		It("should panic if it cannot extract the given object slice", func() {
+			Expect(func() { MustExtractObjectSlice([]string{"foo", "bar"}) }).To(Panic())
 		})
 	})
 
@@ -325,6 +406,13 @@ var _ = Describe("Metautils", func() {
 		})
 	})
 
+	Describe("MustExtractObjectSlicePointer", func() {
+		It("should panic if it cannot extract the object slice", func() {
+			slice := []string{"foo", "bar"}
+			Expect(func() { MustExtractObjectSlicePointer(&slice) }).To(Panic())
+		})
+	})
+
 	Describe("SetObjectSlice", func() {
 		It("should set the slice values from the given client.Object slice", func() {
 			var s []corev1.ConfigMap
@@ -355,6 +443,12 @@ var _ = Describe("Metautils", func() {
 
 		It("should error if the given value is a non-pointer non-slice", func() {
 			Expect(SetObjectSlice(1, nil)).To(HaveOccurred())
+		})
+	})
+
+	Describe("MustSetObjectSlice", func() {
+		It("should panic if it cannot set the object slice", func() {
+			Expect(func() { MustSetObjectSlice(1, nil) }).To(Panic())
 		})
 	})
 })

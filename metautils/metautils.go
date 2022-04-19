@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
@@ -131,6 +132,14 @@ func ExtractList(obj client.ObjectList) ([]client.Object, error) {
 	return objects, nil
 }
 
+// MustExtractList extracts the items of a list into a slice of client.Object.
+// It panics if it cannot extract the list.
+func MustExtractList(obj client.ObjectList) []client.Object {
+	res, err := ExtractList(obj)
+	utilruntime.Must(err)
+	return res
+}
+
 func enforceSlice(obj interface{}) (reflect.Value, error) {
 	v := reflect.ValueOf(obj)
 	if v.Kind() != reflect.Slice {
@@ -163,12 +172,29 @@ func ExtractObjectSlice(slice interface{}) ([]client.Object, error) {
 	return extractObjectSlice(items)
 }
 
+// MustExtractObjectSlice extracts client.Object from a given slice.
+// It panics if it cannot extract the objects from the slice.
+func MustExtractObjectSlice(slice interface{}) []client.Object {
+	res, err := ExtractObjectSlice(slice)
+	utilruntime.Must(err)
+	return res
+}
+
+// ExtractObjectSlicePointer extracts client.Object from a given slice pointer.
 func ExtractObjectSlicePointer(slicePtr interface{}) ([]client.Object, error) {
 	items, err := enforceSlicePtr(slicePtr)
 	if err != nil {
 		return nil, err
 	}
 	return extractObjectSlice(items)
+}
+
+// MustExtractObjectSlicePointer extracts client.Object from a given slice pointer.
+// It panics if it cannot extract the objects from the slice pointer.
+func MustExtractObjectSlicePointer(slicePtr interface{}) []client.Object {
+	res, err := ExtractObjectSlicePointer(slicePtr)
+	utilruntime.Must(err)
+	return res
 }
 
 func extractObjectSlice(items reflect.Value) ([]client.Object, error) {
@@ -208,6 +234,12 @@ func SetObjectSlice(slicePtr interface{}, objects []client.Object) error {
 	}
 
 	return setObjectSlice(items, objects)
+}
+
+// MustSetObjectSlice sets a slice pointer's values to the given objects.
+// It panics if it cannot set the slice pointer values to the given objects.
+func MustSetObjectSlice(slicePtr interface{}, objects []client.Object) {
+	utilruntime.Must(SetObjectSlice(slicePtr, objects))
 }
 
 func setObjectSlice(items reflect.Value, objects []client.Object) error {
@@ -259,4 +291,10 @@ func SetList(list client.ObjectList, objects []client.Object) error {
 		return err
 	}
 	return setObjectSlice(items, objects)
+}
+
+// MustSetList sets the items in a client.ObjectList to the given objects.
+// It panics if it cannot set the items in the client.ObjectList.
+func MustSetList(list client.ObjectList, objects []client.Object) {
+	utilruntime.Must(SetList(list, objects))
 }
