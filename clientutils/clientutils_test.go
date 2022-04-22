@@ -59,6 +59,8 @@ var _ = Describe("Clientutils", func() {
 		cm    *corev1.ConfigMap
 		cmKey client.ObjectKey
 
+		cmList *corev1.ConfigMapList
+
 		uPod *unstructured.Unstructured
 
 		secret    *corev1.Secret
@@ -84,6 +86,10 @@ var _ = Describe("Clientutils", func() {
 		}
 		cmKey = client.ObjectKeyFromObject(cm)
 
+		cmList = &corev1.ConfigMapList{
+			Items: []corev1.ConfigMap{*cm},
+		}
+
 		uPod = &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": "v1",
@@ -104,6 +110,23 @@ var _ = Describe("Clientutils", func() {
 		secretKey = client.ObjectKeyFromObject(secret)
 
 		patchProvider = mockclientutils.NewMockPatchProvider(ctrl)
+	})
+
+	Describe("ReaderClient", func() {
+		It("should return a client that dispatches methods correctly", func() {
+			r := mockclient.NewMockClient(ctrl)
+			gomock.InOrder(
+				r.EXPECT().Get(ctx, cmKey, cm),
+				r.EXPECT().List(ctx, cmList),
+				c.EXPECT().Delete(ctx, cm),
+			)
+
+			rc := ReaderClient(r, c)
+
+			Expect(rc.Get(ctx, cmKey, cm)).To(Succeed())
+			Expect(rc.List(ctx, cmList)).To(Succeed())
+			Expect(rc.Delete(ctx, cm)).To(Succeed())
+		})
 	})
 
 	Describe("IgnoreAlreadyExists", func() {

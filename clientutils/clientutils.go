@@ -25,12 +25,36 @@ import (
 	"github.com/onmetal/controller-utils/unstructuredutils"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/conversion"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+type clientMeta interface {
+	Scheme() *runtime.Scheme
+	RESTMapper() meta.RESTMapper
+}
+
+type nonReaderClient interface {
+	client.Writer
+	client.StatusClient
+	clientMeta
+}
+
+type readerClient struct {
+	client.Reader
+	nonReaderClient
+}
+
+// ReaderClient returns a client.Client that uses the given client.Reader for all read operations and the
+// client.Client for the remaining operations.
+func ReaderClient(r client.Reader, c client.Client) client.Client {
+	return readerClient{r, c}
+}
 
 // IgnoreAlreadyExists returns nil if the given error matches apierrors.IsAlreadyExists.
 func IgnoreAlreadyExists(err error) error {
