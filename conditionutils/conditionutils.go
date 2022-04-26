@@ -177,7 +177,103 @@ type Accessor struct {
 	reasonField             string
 	messageField            string
 	observedGenerationField string
+
+	disableTimestampUpdates bool
+	transition              Transition
 	clock                   clock.Clock
+}
+
+// Transition can determine whether a condition transitioned (i.e. LastTransitionTime needs to be updated) or not.
+type Transition interface {
+	// Checkpoint creates a TransactionCheckpoint using the current values of cond extracted with Accessor.
+	Checkpoint(acc *Accessor, cond interface{}) (TransitionCheckpoint, error)
+}
+
+// TransitionCheckpoint can determine whether a condition transitioned using pre-gathered values of a condition.
+type TransitionCheckpoint interface {
+	// Transitioned reports whether the condition transitioned.
+	Transitioned(acc *Accessor, cond interface{}) (bool, error)
+}
+
+// FieldsTransition computes whether a condition transitioned using the `Include`-Fields.
+type FieldsTransition struct {
+	// IncludeStatus includes Accessor.Status for the transition calculation. This is the most frequent choice.
+	IncludeStatus bool
+	// IncludeReason includes Accessor.Reason for the transition calculation. While more seldom, there are use cases
+	// for including the reason in the transition calculation.
+	IncludeReason bool
+	// IncludeMessage includes Accessor.Message for the transition calculation. Used rarely, usually causes
+	// a lot of transitions.
+	IncludeMessage bool
+}
+
+func (f *FieldsTransition) computeValues(acc *Accessor, cond interface{}) (*fieldsTransitionValues, error) {
+	var fields fieldsTransitionValues
+
+	if f.IncludeStatus {
+		status, err := acc.Status(cond)
+		if err != nil {
+			return nil, err
+		}
+
+		fields.Status = status
+	}
+
+	if f.IncludeReason {
+		reason, err := acc.Reason(cond)
+		if err != nil {
+			return nil, err
+		}
+
+		fields.Reason = reason
+	}
+
+	if f.IncludeMessage {
+		message, err := acc.Message(cond)
+		if err != nil {
+			return nil, err
+		}
+
+		fields.Message = message
+	}
+
+	return &fields, nil
+}
+
+// Checkpoint implements Transition.
+func (f *FieldsTransition) Checkpoint(acc *Accessor, cond interface{}) (TransitionCheckpoint, error) {
+	values, err := f.computeValues(acc, cond)
+	if err != nil {
+		return nil, err
+	}
+
+	return &fieldsTransitionCheckpoint{
+		transition: *f,
+		values:     *values,
+	}, nil
+}
+
+type fieldsTransitionValues struct {
+	Status  corev1.ConditionStatus
+	Reason  string
+	Message string
+}
+
+type fieldsTransitionCheckpoint struct {
+	transition FieldsTransition
+	values     fieldsTransitionValues
+}
+
+// Transitioned implements TransitionCheckpoint.
+func (f *fieldsTransitionCheckpoint) Transitioned(acc *Accessor, cond interface{}) (bool, error) {
+	newValues, err := f.transition.computeValues(acc, cond)
+	if err != nil {
+		return false, err
+	}
+
+	return newValues.Status != f.values.Status ||
+		newValues.Reason != f.values.Reason ||
+		newValues.Message != f.values.Message, nil
 }
 
 // Type extracts the type of the given condition.
@@ -763,37 +859,20 @@ type UpdateOption interface {
 //
 // Update errors if the given condPtr is not a pointer to a struct supporting the required condition fields.
 func (a *Accessor) Update(condPtr interface{}, opts ...UpdateOption) error {
-	v, err := enforcePtrToStruct(condPtr)
-	if err != nil {
-		return err
-	}
-
-	// Record status before updates to be able to infer LastTransitionTime.
-	statusBefore, err := a.Status(v.Interface())
-	if err != nil {
-		return err
+	if !a.disableTimestampUpdates {
+		opts = []UpdateOption{
+			UpdateTimestamps{
+				Transition: a.transition,
+				Clock:      a.clock,
+				Updates:    opts,
+			},
+		}
 	}
 
 	for _, opt := range opts {
 		if err := opt.ApplyUpdate(a, condPtr); err != nil {
 			return err
 		}
-	}
-
-	statusAfter, err := a.Status(v.Interface())
-	if err != nil {
-		return err
-	}
-
-	now := metav1.NewTime(a.clock.Now())
-	if statusBefore != statusAfter {
-		if err := a.SetLastTransitionTimeIfExists(condPtr, now); err != nil {
-			return err
-		}
-	}
-
-	if err := a.SetLastUpdateTimeIfExists(condPtr, now); err != nil {
-		return err
 	}
 
 	return nil
@@ -871,6 +950,69 @@ func (a *Accessor) UpdateSlice(condSlicePtr interface{}, typ string, opts ...Upd
 // whether the status changed and then updated.
 func (a *Accessor) MustUpdateSlice(condSlicePtr interface{}, typ string, opts ...UpdateOption) {
 	utilruntime.Must(a.UpdateSlice(condSlicePtr, typ, opts...))
+}
+
+// UpdateTimestamps manages the LastUpdateTime and LastTransitionTime field by creating a checkpoint with
+// Transition, running all Updates and then checking if the TransitionCheckpoint reports transitioned.
+// If so, the LastTransitionTimeField and the LastUpdateTimeField will be set to the current time using Clock (if
+// Clock is unset, it uses clock.RealClock). Otherwise, only LastUpdateTimeField is updated..
+type UpdateTimestamps struct {
+	// Transition is the Transition to check whether a condition transitioned. Required.
+	Transition Transition
+	// Updates are all updates to run.
+	Updates []UpdateOption
+	// Clock is the clock to yield the current time. If unset, clock.RealClock is used.
+	Clock clock.Clock
+}
+
+// UpdateTimestampsWith updates timestamps with the DefaultTransition and clock.RealClock. See UpdateTimestamps for
+// more information.
+func UpdateTimestampsWith(updates ...UpdateOption) UpdateOption {
+	return UpdateTimestamps{
+		Transition: DefaultTransition,
+		Updates:    updates,
+	}
+}
+
+// ApplyUpdate implements UpdateOption.
+func (u UpdateTimestamps) ApplyUpdate(a *Accessor, condPtr interface{}) error {
+	condV, err := enforcePtrToStruct(condPtr)
+	if err != nil {
+		return err
+	}
+
+	checkpoint, err := u.Transition.Checkpoint(a, condV.Interface())
+	if err != nil {
+		return err
+	}
+
+	for _, update := range u.Updates {
+		if err := update.ApplyUpdate(a, condPtr); err != nil {
+			return err
+		}
+	}
+
+	c := u.Clock
+	if c == nil {
+		c = clock.RealClock{}
+	}
+	now := c.Now()
+
+	ok, err := checkpoint.Transitioned(a, condV.Interface())
+	if err != nil {
+		return err
+	}
+	if ok {
+		if err := a.SetLastTransitionTimeIfExists(condPtr, metav1.NewTime(now)); err != nil {
+			return err
+		}
+	}
+
+	if err := a.SetLastUpdateTimeIfExists(condPtr, metav1.NewTime(now)); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // UpdateStatus implements UpdateOption to set a corev1.ConditionStatus.
@@ -982,7 +1124,9 @@ type AccessorOptions struct {
 	MessageField            string
 	ObservedGenerationField string
 
-	Clock clock.Clock
+	DisableTimestampUpdates bool
+	Transition              Transition
+	Clock                   clock.Clock
 }
 
 // SetDefaults sets default values for AccessorOptions.
@@ -1008,6 +1152,9 @@ func (o *AccessorOptions) SetDefaults() {
 	if o.ObservedGenerationField == "" {
 		o.ObservedGenerationField = DefaultObservedGenerationField
 	}
+	if o.Transition == nil {
+		o.Transition = DefaultTransition
+	}
 	if o.Clock == nil {
 		o.Clock = clock.RealClock{}
 	}
@@ -1024,6 +1171,8 @@ func NewAccessor(opts AccessorOptions) *Accessor {
 		reasonField:             opts.ReasonField,
 		messageField:            opts.MessageField,
 		observedGenerationField: opts.ObservedGenerationField,
+		disableTimestampUpdates: opts.DisableTimestampUpdates,
+		transition:              opts.Transition,
 		clock:                   opts.Clock,
 	}
 }

@@ -15,6 +15,9 @@
 package conditionutils
 
 var (
+	// DefaultTransition is the default Transition.
+	DefaultTransition Transition = &FieldsTransition{IncludeStatus: true}
+
 	// DefaultAccessor is an Accessor initialized with the default fields.
 	// See NewAccessor for more.
 	DefaultAccessor = NewAccessor(AccessorOptions{})

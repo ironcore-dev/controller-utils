@@ -17,7 +17,7 @@ package conditionutils_test
 import (
 	"time"
 
-	"github.com/onmetal/controller-utils/conditionutils"
+	. "github.com/onmetal/controller-utils/conditionutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -48,7 +48,8 @@ var _ = Describe("Condition", func() {
 		var (
 			now     time.Time
 			metaNow metav1.Time
-			acc     *conditionutils.Accessor
+			c       clock.Clock
+			acc     *Accessor
 
 			metaCond    metav1.Condition
 			deployCond  appsv1.DeploymentCondition
@@ -59,8 +60,9 @@ var _ = Describe("Condition", func() {
 		f := func() {
 			now = time.Unix(100, 0)
 			metaNow = metav1.NewTime(now)
-			acc = conditionutils.NewAccessor(conditionutils.AccessorOptions{
-				Clock: clock.NewFakeClock(now),
+			c = clock.NewFakeClock(now)
+			acc = NewAccessor(AccessorOptions{
+				Clock: c,
 			})
 			metaCond = metav1.Condition{
 				Type:               "TimePtr",
@@ -283,9 +285,9 @@ var _ = Describe("Condition", func() {
 		Describe("Update", func() {
 			It("should apply all updates and change the transition time in case the status changed", func() {
 				Expect(acc.Update(&deployCond,
-					conditionutils.UpdateStatus(corev1.ConditionFalse),
-					conditionutils.UpdateReason("BadDay"),
-					conditionutils.UpdateMessage("Some message"),
+					UpdateStatus(corev1.ConditionFalse),
+					UpdateReason("BadDay"),
+					UpdateMessage("Some message"),
 				)).To(Succeed())
 				Expect(deployCond).To(Equal(appsv1.DeploymentCondition{
 					Type:               appsv1.DeploymentAvailable,
@@ -299,8 +301,8 @@ var _ = Describe("Condition", func() {
 
 			It("should apply all updates and not change the transition time when the status did not change", func() {
 				Expect(acc.Update(&deployCond,
-					conditionutils.UpdateReason("BadDay"),
-					conditionutils.UpdateMessage("Some message"),
+					UpdateReason("BadDay"),
+					UpdateMessage("Some message"),
 				)).To(Succeed())
 				Expect(deployCond).To(Equal(appsv1.DeploymentCondition{
 					Type:               appsv1.DeploymentAvailable,
@@ -312,9 +314,53 @@ var _ = Describe("Condition", func() {
 				}))
 			})
 
+			It("should not manage the timestamp fields if disabled", func() {
+				acc = NewAccessor(AccessorOptions{
+					DisableTimestampUpdates: true,
+				})
+				Expect(acc.Update(&deployCond,
+					UpdateStatus(corev1.ConditionFalse),
+					UpdateReason("BadDay"),
+					UpdateMessage("Some message"),
+				)).To(Succeed())
+				Expect(deployCond).To(Equal(appsv1.DeploymentCondition{
+					Type:               appsv1.DeploymentAvailable,
+					Status:             corev1.ConditionFalse,
+					LastUpdateTime:     metav1.Unix(2, 0),
+					LastTransitionTime: metav1.Unix(1, 0),
+					Reason:             "BadDay",
+					Message:            "Some message",
+				}))
+			})
+
+			It("should let the UpdateTimestamps option manage the timestamp fields if disabled", func() {
+				acc = NewAccessor(AccessorOptions{
+					DisableTimestampUpdates: true,
+				})
+				Expect(acc.Update(&deployCond,
+					UpdateTimestamps{
+						Clock:      c,
+						Transition: DefaultTransition,
+						Updates: []UpdateOption{
+							UpdateStatus(corev1.ConditionFalse),
+							UpdateReason("BadDay"),
+							UpdateMessage("Some message"),
+						},
+					},
+				)).To(Succeed())
+				Expect(deployCond).To(Equal(appsv1.DeploymentCondition{
+					Type:               appsv1.DeploymentAvailable,
+					Status:             corev1.ConditionFalse,
+					LastUpdateTime:     metaNow,
+					LastTransitionTime: metaNow,
+					Reason:             "BadDay",
+					Message:            "Some message",
+				}))
+			})
+
 			It("should apply the fields from the source condition to the target condition", func() {
 				Expect(acc.Update(&deployCond,
-					conditionutils.UpdateFromCondition{
+					UpdateFromCondition{
 						Condition: appsv1.DeploymentCondition{
 							Status:  corev1.ConditionFalse,
 							Reason:  "BadDay",
@@ -370,7 +416,7 @@ var _ = Describe("Condition", func() {
 		Describe("UpdateSlice", func() {
 			It("should update the slice, adding the desired condition", func() {
 				Expect(acc.UpdateSlice(&deployConds, string(appsv1.DeploymentProgressing),
-					conditionutils.UpdateStatus(corev1.ConditionFalse),
+					UpdateStatus(corev1.ConditionFalse),
 				)).To(Succeed())
 
 				Expect(deployConds).To(Equal([]appsv1.DeploymentCondition{
@@ -386,7 +432,7 @@ var _ = Describe("Condition", func() {
 
 			It("should update the slice, updating the existing condition in-place", func() {
 				Expect(acc.UpdateSlice(&deployConds, string(appsv1.DeploymentAvailable),
-					conditionutils.UpdateStatus(corev1.ConditionFalse),
+					UpdateStatus(corev1.ConditionFalse),
 				)).To(Succeed())
 
 				Expect(deployConds).To(Equal([]appsv1.DeploymentCondition{
@@ -400,6 +446,56 @@ var _ = Describe("Condition", func() {
 					},
 				}))
 			})
+		})
+	})
+
+	Context("FieldTransition", func() {
+		var (
+			acc   *Accessor
+			trans *FieldsTransition
+			cond  appsv1.DeploymentCondition
+		)
+		BeforeEach(func() {
+			acc = NewAccessor(AccessorOptions{})
+			trans = &FieldsTransition{
+				IncludeStatus: true,
+			}
+			cond = appsv1.DeploymentCondition{
+				Type:    appsv1.DeploymentAvailable,
+				Status:  corev1.ConditionTrue,
+				Reason:  "MinimumReplicasAvailable",
+				Message: "ReplicaSet \"foo\" has successfully progressed.",
+			}
+		})
+
+		It("should create a checkpoint that reports if a field got updated", func() {
+			checkpoint, err := trans.Checkpoint(acc, cond)
+			Expect(err).NotTo(HaveOccurred())
+
+			cond.Status = corev1.ConditionFalse
+			ok, err := checkpoint.Transitioned(acc, cond)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ok).To(BeTrue(), "condition did not transition: %#v", cond)
+		})
+
+		It("should create a checkpoint that reports if multiple fields got updated", func() {
+			trans.IncludeReason = true
+			checkpoint, err := trans.Checkpoint(acc, cond)
+			Expect(err).NotTo(HaveOccurred())
+
+			cond.Reason = "OtherReason"
+			ok, err := checkpoint.Transitioned(acc, cond)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ok).To(BeTrue(), "condition did not transition: %#v", cond)
+		})
+
+		It("should create a checkpoint that returns false if no relevant field got updated", func() {
+			checkpoint, err := trans.Checkpoint(acc, cond)
+			Expect(err).NotTo(HaveOccurred())
+
+			ok, err := checkpoint.Transitioned(acc, cond)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ok).To(BeFalse(), "condition did transition: %#v", cond)
 		})
 	})
 })
