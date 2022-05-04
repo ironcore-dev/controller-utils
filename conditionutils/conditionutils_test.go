@@ -24,7 +24,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/clock"
+	clock "k8s.io/utils/clock/testing"
 )
 
 var _ = Describe("Condition", func() {
@@ -48,7 +48,7 @@ var _ = Describe("Condition", func() {
 		var (
 			now     time.Time
 			metaNow metav1.Time
-			c       clock.Clock
+			c       *clock.FakeClock
 			acc     *Accessor
 
 			metaCond    metav1.Condition
