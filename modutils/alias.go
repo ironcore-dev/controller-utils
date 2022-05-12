@@ -28,10 +28,10 @@ var (
 	// Get is an alias to DefaultExecutor.Get.
 	Get = DefaultExecutor.Get
 
-	// GetDirE is an alias to DefaultExecutor.GetDirE.
-	GetDirE = DefaultExecutor.DirE
-	// GetDir is an alias to DefaultExecutor.GetDir.
-	GetDir = DefaultExecutor.Dir
+	// DirE is an alias to DefaultExecutor.DirE.
+	DirE = DefaultExecutor.DirE
+	// Dir is an alias to DefaultExecutor.Dir.
+	Dir = DefaultExecutor.Dir
 
 	// BuildE is an alias to DefaultExecutor.BuildE.
 	BuildE = DefaultExecutor.BuildE

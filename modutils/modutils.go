@@ -211,7 +211,7 @@ func (e *Executor) BuildE(filename, name string, parts ...string) error {
 
 	target := "."
 	if len(parts) > 0 {
-		target += path.Join(parts...)
+		target = "./" + path.Join(parts...)
 	}
 
 	if err := e.build(name, dir, target, filename); err != nil {

@@ -62,6 +62,13 @@ var _ = Describe("Modutils", func() {
 				Expect(filepath.Join(dir, "go.mod")).To(BeARegularFile())
 				Expect(filepath.Join(dir, "main.go")).To(BeARegularFile())
 			})
+
+			It("should get the directory of the specified module", func() {
+				dir, err := executor.DirE("example.org/testmod2", "submain")
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dir).To(BeADirectory())
+				Expect(filepath.Join(dir, "main.go")).To(BeARegularFile())
+			})
 		})
 
 		Describe("BuildE", func() {
@@ -73,6 +80,16 @@ var _ = Describe("Modutils", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(session.Wait(1 * time.Second).Out).To(gbytes.Say("Hello, World!"))
+			})
+
+			It("should build the module via another module and subpath", func() {
+				dstFilename := filepath.Join(GinkgoT().TempDir(), "hello-world")
+				Expect(executor.BuildE(dstFilename, "example.org/testmod2", "submain")).To(Succeed())
+
+				session, err := gexec.Start(exec.Command(dstFilename), GinkgoWriter, GinkgoWriter)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(session.Wait(1 * time.Second).Out).To(gbytes.Say("Hello, Submain!"))
 			})
 		})
 	})
