@@ -50,12 +50,17 @@ type ModMode string
 
 const (
 	// ModModeVendor causes modules to be resolved from a vendor folder.
-	ModModeVendor = "vendor"
+	ModModeVendor ModMode = "vendor"
 	// ModModeReadonly expect all modules to be present in the module cache for the current module.
-	ModModeReadonly = "readonly"
+	ModModeReadonly ModMode = "readonly"
 	// ModModeMod fetches any module before building.
-	ModModeMod = "mod"
+	ModModeMod ModMode = "mod"
 )
+
+// ApplyToBuild implements BuildOption.
+func (m ModMode) ApplyToBuild(o *BuildOptions) {
+	o.Mod = &m
+}
 
 // BuildOptions are options to supply for a Build.
 type BuildOptions struct {
@@ -87,6 +92,17 @@ type BuildOption interface {
 	// ApplyToBuild applies the option to the BuildOptions.
 	ApplyToBuild(o *BuildOptions)
 }
+
+// forceRebuild is an option to force rebuilding packages.
+type forceRebuild struct{}
+
+// ApplyToBuild implements BuildOption.
+func (forceRebuild) ApplyToBuild(o *BuildOptions) {
+	o.ForceRebuild = true
+}
+
+// ForceRebuild is an option to force rebuilding packages.
+var ForceRebuild = forceRebuild{}
 
 // Build runs `go build` with the target output and name.
 // If BuilderOptions.Tidy was set, it runs `go mod tidy` beforehand.
