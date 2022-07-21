@@ -298,3 +298,90 @@ func SetList(list client.ObjectList, objects []client.Object) error {
 func MustSetList(list client.ObjectList, objects []client.Object) {
 	utilruntime.Must(SetList(list, objects))
 }
+
+// NewListForGVK creates a new client.ObjectList for the given singular schema.GroupVersionKind.
+func NewListForGVK(scheme *runtime.Scheme, gvk schema.GroupVersionKind) (client.ObjectList, error) {
+	// This is considered to be good-enough (used across controller-runtime).
+	gvk = gvk.GroupVersion().WithKind(gvk.Kind + "List")
+	obj, err := scheme.New(gvk)
+	if err != nil {
+		return nil, fmt.Errorf("error creating list for %s: %w", gvk, err)
+	}
+
+	list, ok := obj.(client.ObjectList)
+	if !ok {
+		return nil, fmt.Errorf("object %T does not implement client.ObjectList", obj)
+	}
+
+	return list, nil
+}
+
+// NewListForObject creates a new client.ObjectList for the given singular client.Object.
+func NewListForObject(scheme *runtime.Scheme, obj client.Object) (client.ObjectList, error) {
+	gvk, err := apiutil.GVKForObject(obj, scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewListForGVK(scheme, gvk)
+}
+
+// EachListItem traverses over all items of the client.ObjectList.
+func EachListItem(list client.ObjectList, f func(obj client.Object) error) error {
+	return meta.EachListItem(list, func(rObj runtime.Object) error {
+		obj, ok := rObj.(client.Object)
+		if !ok {
+			return fmt.Errorf("object %T does not implement client.Object", rObj)
+		}
+
+		return f(obj)
+	})
+}
+
+// SetLabel sets the given label on the object.
+func SetLabel(obj metav1.Object, key, value string) {
+	labels := obj.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+
+	labels[key] = value
+	obj.SetLabels(labels)
+}
+
+// SetLabels sets the given labels on the object.
+func SetLabels(obj metav1.Object, set map[string]string) {
+	labels := obj.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+
+	for k, v := range set {
+		labels[k] = v
+	}
+	obj.SetLabels(labels)
+}
+
+// SetAnnotation sets the given annotation on the object.
+func SetAnnotation(obj metav1.Object, key, value string) {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+
+	annotations[key] = value
+	obj.SetAnnotations(annotations)
+}
+
+// SetAnnotations sets the given annotations on the object.
+func SetAnnotations(obj metav1.Object, set map[string]string) {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+
+	for k, v := range set {
+		annotations[k] = v
+	}
+	obj.SetAnnotations(annotations)
+}

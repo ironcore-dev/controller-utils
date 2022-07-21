@@ -17,7 +17,9 @@ package metautils_test
 import (
 	"reflect"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/onmetal/controller-utils/metautils"
+	mockmetautils "github.com/onmetal/controller-utils/mock/controller-utils/metautils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -25,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,6 +47,14 @@ func (b *BadList) DeepCopyObject() runtime.Object {
 }
 
 var _ = Describe("Metautils", func() {
+	var (
+		ctrl *gomock.Controller
+	)
+	BeforeEach(func() {
+		ctrl = gomock.NewController(GinkgoT())
+		DeferCleanup(ctrl.Finish)
+	})
+
 	Describe("ListElementType", func() {
 		It("should return the element type of an object list", func() {
 			t, err := ListElementType(&appsv1.DeploymentList{})
@@ -451,4 +462,97 @@ var _ = Describe("Metautils", func() {
 			Expect(func() { MustSetObjectSlice(1, nil) }).To(Panic())
 		})
 	})
+
+	Describe("NewListForGVK", func() {
+		It("should create a new list for the given gvk", func() {
+			list, err := NewListForGVK(scheme.Scheme, corev1.SchemeGroupVersion.WithKind("Secret"))
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(list).To(Equal(&corev1.SecretList{}))
+		})
+
+		It("should error if it cannot instantiate the list", func() {
+			_, err := NewListForGVK(scheme.Scheme, schema.GroupVersionKind{})
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("NewListForObject", func() {
+		It("should create a new list for the given object", func() {
+			list, err := NewListForObject(scheme.Scheme, &corev1.Secret{})
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(list).To(Equal(&corev1.SecretList{}))
+		})
+
+		It("should error if it cannot determine the gvk for the object", func() {
+			_, err := NewListForObject(scheme.Scheme, &unstructured.Unstructured{})
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("EachListItem", func() {
+		It("should traverse over each list item", func() {
+			list := &corev1.SecretList{
+				Items: []corev1.Secret{
+					{ObjectMeta: metav1.ObjectMeta{Name: "foo"}},
+					{ObjectMeta: metav1.ObjectMeta{Name: "bar"}},
+				},
+			}
+
+			f := mockmetautils.NewMockEachListItemFunc(ctrl)
+			gomock.InOrder(
+				f.EXPECT().Call(&list.Items[0]),
+				f.EXPECT().Call(&list.Items[1]),
+			)
+
+			Expect(EachListItem(list, f.Call)).To(Succeed())
+		})
+	})
+
+	DescribeTable("SetLabel",
+		func(initLabels map[string]string, key, value string, expected map[string]string) {
+			obj := &metav1.ObjectMeta{Labels: initLabels}
+			SetLabel(obj, key, value)
+			Expect(obj.Labels).To(Equal(expected))
+		},
+		Entry("nil labels", nil, "foo", "bar", map[string]string{"foo": "bar"}),
+		Entry("key present w/ different value", map[string]string{"foo": "baz"}, "foo", "bar", map[string]string{"foo": "bar"}),
+		Entry("other keys present", map[string]string{"bar": "baz"}, "foo", "bar", map[string]string{"bar": "baz", "foo": "bar"}),
+	)
+
+	DescribeTable("SetLabels",
+		func(initLabels map[string]string, set, expected map[string]string) {
+			obj := &metav1.ObjectMeta{Labels: initLabels}
+			SetLabels(obj, set)
+			Expect(obj.Labels).To(Equal(expected))
+		},
+		Entry("nil labels", nil, map[string]string{"foo": "bar"}, map[string]string{"foo": "bar"}),
+		Entry("key present w/ different value", map[string]string{"foo": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"foo": "bar"}),
+		Entry("other keys present", map[string]string{"bar": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"bar": "baz", "foo": "bar"}),
+		Entry("partial other keys, same key", map[string]string{"foo": "baz", "bar": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"foo": "bar", "bar": "baz"}),
+	)
+
+	DescribeTable("SetAnnotation",
+		func(initAnnotations map[string]string, key, value string, expected map[string]string) {
+			obj := &metav1.ObjectMeta{Annotations: initAnnotations}
+			SetAnnotation(obj, key, value)
+			Expect(obj.Annotations).To(Equal(expected))
+		},
+		Entry("nil annotations", nil, "foo", "bar", map[string]string{"foo": "bar"}),
+		Entry("key present w/ different value", map[string]string{"foo": "baz"}, "foo", "bar", map[string]string{"foo": "bar"}),
+		Entry("other keys present", map[string]string{"bar": "baz"}, "foo", "bar", map[string]string{"bar": "baz", "foo": "bar"}),
+	)
+
+	DescribeTable("SetAnnotations",
+		func(initAnnotations map[string]string, set, expected map[string]string) {
+			obj := &metav1.ObjectMeta{Annotations: initAnnotations}
+			SetAnnotations(obj, set)
+			Expect(obj.Annotations).To(Equal(expected))
+		},
+		Entry("nil annotations", nil, map[string]string{"foo": "bar"}, map[string]string{"foo": "bar"}),
+		Entry("key present w/ different value", map[string]string{"foo": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"foo": "bar"}),
+		Entry("other keys present", map[string]string{"bar": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"bar": "baz", "foo": "bar"}),
+		Entry("partial other keys, same key", map[string]string{"foo": "baz", "bar": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"foo": "bar", "bar": "baz"}),
+	)
 })
