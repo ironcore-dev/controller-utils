@@ -14,7 +14,7 @@
 
 //go:build tools
 
-package utils
+package hack
 
 import (
 	// Use mockgen for generating mocks.

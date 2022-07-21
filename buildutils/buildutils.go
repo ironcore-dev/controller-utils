@@ -45,16 +45,73 @@ func (b *Builder) execCommand(name string, args ...string) error {
 	return nil
 }
 
+// ModMode is the module download mode to use.
+type ModMode string
+
+const (
+	// ModModeVendor causes modules to be resolved from a vendor folder.
+	ModModeVendor = "vendor"
+	// ModModeReadonly expect all modules to be present in the module cache for the current module.
+	ModModeReadonly = "readonly"
+	// ModModeMod fetches any module before building.
+	ModModeMod = "mod"
+)
+
+// BuildOptions are options to supply for a Build.
+type BuildOptions struct {
+	// ForceRebuild forces rebuilding of packages that are already up-to-date.
+	ForceRebuild bool
+	// Mod specifies the module download mode to use.
+	Mod *ModMode
+}
+
+// ApplyOptions applies the slice of BuildOption to this BuildOptions.
+func (o *BuildOptions) ApplyOptions(opts []BuildOption) {
+	for _, opt := range opts {
+		opt.ApplyToBuild(o)
+	}
+}
+
+// ApplyToBuild implements BuildOption.
+func (o *BuildOptions) ApplyToBuild(o2 *BuildOptions) {
+	if o.ForceRebuild {
+		o2.ForceRebuild = true
+	}
+	if o.Mod != nil {
+		o2.Mod = o.Mod
+	}
+}
+
+// BuildOption are options to apply to BuildOptions.
+type BuildOption interface {
+	// ApplyToBuild applies the option to the BuildOptions.
+	ApplyToBuild(o *BuildOptions)
+}
+
 // Build runs `go build` with the target output and name.
 // If BuilderOptions.Tidy was set, it runs `go mod tidy` beforehand.
-func (b *Builder) Build(name, filename string) error {
+func (b *Builder) Build(name, filename string, opts ...BuildOption) error {
+	o := &BuildOptions{}
+	o.ApplyOptions(opts)
+
 	if b.tidy {
 		if err := b.execCommand("go", "mod", "tidy"); err != nil {
 			return fmt.Errorf("error tidying: %w", err)
 		}
 	}
 
-	if err := b.execCommand("go", "build", "-o", filename, name); err != nil {
+	args := []string{"build", "-o", filename}
+
+	if mod := o.Mod; mod != nil {
+		args = append(args, "-mod", string(*mod))
+	}
+	if o.ForceRebuild {
+		args = append(args, "-a")
+	}
+
+	args = append(args, name)
+
+	if err := b.execCommand("go", args...); err != nil {
 		return fmt.Errorf("error building: %w", err)
 	}
 	return nil
