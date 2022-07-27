@@ -16,6 +16,7 @@ package metautils_test
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/onmetal/controller-utils/metautils"
@@ -555,4 +556,28 @@ var _ = Describe("Metautils", func() {
 		Entry("other keys present", map[string]string{"bar": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"bar": "baz", "foo": "bar"}),
 		Entry("partial other keys, same key", map[string]string{"foo": "baz", "bar": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"foo": "bar", "bar": "baz"}),
 	)
+
+	Describe("FilterList", func() {
+		It("should filter the list with the given function", func() {
+			list := &corev1.SecretList{
+				Items: []corev1.Secret{
+					{ObjectMeta: metav1.ObjectMeta{Namespace: "foo", Name: "bar"}},
+					{ObjectMeta: metav1.ObjectMeta{Namespace: "foo", Name: "baz"}},
+					{ObjectMeta: metav1.ObjectMeta{Namespace: "foo", Name: "qux"}},
+					{ObjectMeta: metav1.ObjectMeta{Namespace: "bar", Name: "bar"}},
+				},
+			}
+
+			Expect(FilterList(list, func(obj client.Object) bool {
+				return obj.GetNamespace() == "foo" && strings.HasPrefix(obj.GetName(), "b")
+			})).To(Succeed())
+
+			Expect(list).To(Equal(&corev1.SecretList{
+				Items: []corev1.Secret{
+					{ObjectMeta: metav1.ObjectMeta{Namespace: "foo", Name: "bar"}},
+					{ObjectMeta: metav1.ObjectMeta{Namespace: "foo", Name: "baz"}},
+				},
+			}))
+		})
+	})
 })

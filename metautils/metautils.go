@@ -338,6 +338,21 @@ func EachListItem(list client.ObjectList, f func(obj client.Object) error) error
 	})
 }
 
+// FilterList filters the list with the given function, mutating it in-place with the filtered objects.
+func FilterList(list client.ObjectList, f func(obj client.Object) bool) error {
+	var filtered []client.Object
+	if err := EachListItem(list, func(obj client.Object) error {
+		if f(obj) {
+			filtered = append(filtered, obj)
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("error filtering list: %w", err)
+	}
+
+	return SetList(list, filtered)
+}
+
 // SetLabel sets the given label on the object.
 func SetLabel(obj metav1.Object, key, value string) {
 	labels := obj.GetLabels()
