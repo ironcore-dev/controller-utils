@@ -105,22 +105,24 @@ func getKubeconfigFlag() string {
 	return f.Value.String()
 }
 
-// GetConfig creates a *rest.Config for talking to a Kubernetes API server.
-// Kubeconfig / the '--kubeconfig' flag instruct to use the kubeconfig file at that location.
-// Otherwise, will assume running in cluster and use the cluster provided kubeconfig.
-//
-// It also applies saner defaults for QPS and burst based on the Kubernetes
-// controller manager defaults (20 QPS, 30 burst)
-//
-// Config precedence
-//
-// * Kubeconfig / --kubeconfig value / flag pointing at a file
-//
-// * KUBECONFIG environment variable pointing at a file
-//
-// * In-cluster config if running in cluster
-//
-// * $HOME/.kube/config if exists.
+/*
+GetConfig creates a *rest.Config for talking to a Kubernetes API server.
+Kubeconfig / the '--kubeconfig' flag instruct to use the kubeconfig file at that location.
+Otherwise, will assume running in cluster and use the cluster provided kubeconfig.
+
+It also applies saner defaults for QPS and burst based on the Kubernetes
+controller manager defaults (20 QPS, 30 burst)
+
+# Config precedence
+
+* Kubeconfig / --kubeconfig value / flag pointing at a file
+
+* KUBECONFIG environment variable pointing at a file
+
+* In-cluster config if running in cluster
+
+* $HOME/.kube/config if exists.
+*/
 func GetConfig(opts ...GetConfigOption) (*rest.Config, error) {
 	o := &GetConfigOptions{}
 	o.ApplyOptions(opts)
