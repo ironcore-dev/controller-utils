@@ -26,8 +26,8 @@ import (
 	"time"
 
 	"github.com/onmetal/controller-utils/conditionutils"
-	"github.com/onmetal/controller-utils/envtestutils/testing/addr"
-	"github.com/onmetal/controller-utils/envtestutils/testing/certs"
+	"github.com/onmetal/controller-utils/internal/testing/addr"
+	"github.com/onmetal/controller-utils/internal/testing/certs"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
