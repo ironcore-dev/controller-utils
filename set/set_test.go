@@ -15,10 +15,9 @@
 package set_test
 
 import (
+	. "github.com/onmetal/controller-utils/set"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	. "github.com/onmetal/controller-utils/set"
 )
 
 var _ = Describe("Set", func() {
@@ -151,6 +150,22 @@ var _ = Describe("Set", func() {
 
 			var nilSet Set[int]
 			Expect(nilSet.Len()).To(Equal(0))
+		})
+	})
+
+	Describe("Slice", func() {
+		It("should return a slice of the set items in arbitrary order", func() {
+			s := New[int](5, 1, 10, 7, 3)
+
+			Expect(s.Slice()).To(ConsistOf(1, 3, 5, 7, 10))
+		})
+	})
+
+	Describe("SortedSlice", func() {
+		It("should return an ordered slice of the items", func() {
+			s := New[int](5, 1, 10, 7, 3)
+
+			Expect(SortedSlice(s)).To(Equal([]int{1, 3, 5, 7, 10}))
 		})
 	})
 })

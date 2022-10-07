@@ -14,6 +14,12 @@
 
 package set
 
+import (
+	"sort"
+
+	"golang.org/x/exp/constraints"
+)
+
 // Empty is the presence marker in a Set.
 type Empty struct{}
 
@@ -164,4 +170,16 @@ func (s Set[E]) PopAny() (E, bool) {
 // Len returns the size of the set.
 func (s Set[E]) Len() int {
 	return len(s)
+}
+
+// SortedSlice takes a Set with constraints.Ordered items and returns a sorted slice of the items.
+func SortedSlice[E constraints.Ordered](set Set[E]) []E {
+	res := make([]E, 0, len(set))
+	for item := range set {
+		res = append(res, item)
+	}
+	sort.Slice(res, func(i, j int) bool {
+		return res[i] < res[j]
+	})
+	return res
 }
