@@ -112,7 +112,7 @@ func getKubeconfigFlag() string {
 // It also applies saner defaults for QPS and burst based on the Kubernetes
 // controller manager defaults (20 QPS, 30 burst)
 //
-// Config precedence
+// # Config precedence
 //
 // * Kubeconfig / --kubeconfig value / flag pointing at a file
 //

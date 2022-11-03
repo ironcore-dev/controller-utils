@@ -13,5 +13,6 @@
 // limitations under the License.
 
 // Package clientutils contains mocks for the actual clientutils package.
+//
 //go:generate go run github.com/golang/mock/mockgen -copyright_file ../../../hack/boilerplate.go.txt -package clientutils -destination=mocks.go github.com/onmetal/controller-utils/clientutils PatchProvider
 package clientutils

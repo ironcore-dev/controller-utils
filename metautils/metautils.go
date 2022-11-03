@@ -353,6 +353,12 @@ func FilterList(list client.ObjectList, f func(obj client.Object) bool) error {
 	return SetList(list, filtered)
 }
 
+// HasLabel checks if the object has a label with the given key.
+func HasLabel(obj metav1.Object, key string) bool {
+	_, ok := obj.GetLabels()[key]
+	return ok
+}
+
 // SetLabel sets the given label on the object.
 func SetLabel(obj metav1.Object, key, value string) {
 	labels := obj.GetLabels()
@@ -368,13 +374,38 @@ func SetLabel(obj metav1.Object, key, value string) {
 func SetLabels(obj metav1.Object, set map[string]string) {
 	labels := obj.GetLabels()
 	if labels == nil {
-		labels = make(map[string]string)
-	}
-
-	for k, v := range set {
-		labels[k] = v
+		labels = set
+	} else {
+		for k, v := range set {
+			labels[k] = v
+		}
 	}
 	obj.SetLabels(labels)
+}
+
+// DeleteLabel deletes the label with the given key from the object.
+func DeleteLabel(obj metav1.Object, key string) {
+	labels := obj.GetLabels()
+	delete(labels, key)
+	obj.SetLabels(labels)
+}
+
+// DeleteLabels deletes the labels with the given keys from the object.
+func DeleteLabels(obj metav1.Object, keys []string) {
+	labels := obj.GetLabels()
+	if len(labels) == 0 {
+		return
+	}
+	for _, key := range keys {
+		delete(labels, key)
+	}
+	obj.SetLabels(labels)
+}
+
+// HasAnnotation checks if the object has an annotation with the given key.
+func HasAnnotation(obj metav1.Object, key string) bool {
+	_, ok := obj.GetAnnotations()[key]
+	return ok
 }
 
 // SetAnnotation sets the given annotation on the object.
@@ -392,11 +423,30 @@ func SetAnnotation(obj metav1.Object, key, value string) {
 func SetAnnotations(obj metav1.Object, set map[string]string) {
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
-		annotations = make(map[string]string)
+		annotations = set
+	} else {
+		for k, v := range set {
+			annotations[k] = v
+		}
 	}
+	obj.SetAnnotations(annotations)
+}
 
-	for k, v := range set {
-		annotations[k] = v
+// DeleteAnnotation deletes the annotation with the given key from the object.
+func DeleteAnnotation(obj metav1.Object, key string) {
+	annotations := obj.GetAnnotations()
+	delete(annotations, key)
+	obj.SetAnnotations(annotations)
+}
+
+// DeleteAnnotations deletes the annotations with the given keys from the object.
+func DeleteAnnotations(obj metav1.Object, keys []string) {
+	annotations := obj.GetAnnotations()
+	if len(annotations) == 0 {
+		return
+	}
+	for _, key := range keys {
+		delete(annotations, key)
 	}
 	obj.SetAnnotations(annotations)
 }

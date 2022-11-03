@@ -511,6 +511,16 @@ var _ = Describe("Metautils", func() {
 		})
 	})
 
+	DescribeTable("HasLabel",
+		func(initLabels map[string]string, key string, expected bool) {
+			obj := &metav1.ObjectMeta{Labels: initLabels}
+			Expect(HasLabel(obj, key)).To(Equal(expected))
+		},
+		Entry("label present", map[string]string{"foo": ""}, "foo", true),
+		Entry("nil labels", nil, "foo", false),
+		Entry("different label present", map[string]string{"bar": ""}, "foo", false),
+	)
+
 	DescribeTable("SetLabel",
 		func(initLabels map[string]string, key, value string, expected map[string]string) {
 			obj := &metav1.ObjectMeta{Labels: initLabels}
@@ -534,6 +544,39 @@ var _ = Describe("Metautils", func() {
 		Entry("partial other keys, same key", map[string]string{"foo": "baz", "bar": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"foo": "bar", "bar": "baz"}),
 	)
 
+	DescribeTable("DeleteLabel",
+		func(initLabels map[string]string, key string, expected map[string]string) {
+			obj := &metav1.ObjectMeta{Labels: initLabels}
+			DeleteLabel(obj, key)
+			Expect(obj.Labels).To(Equal(expected))
+		},
+		Entry("key present", map[string]string{"foo": "bar"}, "foo", map[string]string{}),
+		Entry("different key present", map[string]string{"bar": "baz"}, "foo", map[string]string{"bar": "baz"}),
+		Entry("nil map", nil, "foo", nil),
+	)
+
+	DescribeTable("DeleteLabels",
+		func(initLabels map[string]string, keys []string, expected map[string]string) {
+			obj := &metav1.ObjectMeta{Labels: initLabels}
+			DeleteLabels(obj, keys)
+			Expect(obj.Labels).To(Equal(expected))
+		},
+		Entry("keys present", map[string]string{"foo": "bar", "bar": "baz"}, []string{"foo", "bar"}, map[string]string{}),
+		Entry("some keys present", map[string]string{"foo": "bar", "bar": "baz"}, []string{"foo"}, map[string]string{"bar": "baz"}),
+		Entry("no keys present", map[string]string{"foo": "bar", "bar": "baz"}, []string{"qux"}, map[string]string{"foo": "bar", "bar": "baz"}),
+		Entry("nil map", nil, []string{"foo", "bar"}, nil),
+	)
+
+	DescribeTable("HasAnnotation",
+		func(initAnnotations map[string]string, key string, expected bool) {
+			obj := &metav1.ObjectMeta{Annotations: initAnnotations}
+			Expect(HasAnnotation(obj, key)).To(Equal(expected))
+		},
+		Entry("annotation present", map[string]string{"foo": ""}, "foo", true),
+		Entry("nil annotations", nil, "foo", false),
+		Entry("different annotation present", map[string]string{"bar": ""}, "foo", false),
+	)
+
 	DescribeTable("SetAnnotation",
 		func(initAnnotations map[string]string, key, value string, expected map[string]string) {
 			obj := &metav1.ObjectMeta{Annotations: initAnnotations}
@@ -555,6 +598,29 @@ var _ = Describe("Metautils", func() {
 		Entry("key present w/ different value", map[string]string{"foo": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"foo": "bar"}),
 		Entry("other keys present", map[string]string{"bar": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"bar": "baz", "foo": "bar"}),
 		Entry("partial other keys, same key", map[string]string{"foo": "baz", "bar": "baz"}, map[string]string{"foo": "bar"}, map[string]string{"foo": "bar", "bar": "baz"}),
+	)
+
+	DescribeTable("DeleteAnnotation",
+		func(initAnnotations map[string]string, key string, expected map[string]string) {
+			obj := &metav1.ObjectMeta{Annotations: initAnnotations}
+			DeleteAnnotation(obj, key)
+			Expect(obj.Annotations).To(Equal(expected))
+		},
+		Entry("key present", map[string]string{"foo": "bar"}, "foo", map[string]string{}),
+		Entry("different key present", map[string]string{"bar": "baz"}, "foo", map[string]string{"bar": "baz"}),
+		Entry("nil map", nil, "foo", nil),
+	)
+
+	DescribeTable("DeleteAnnotations",
+		func(initAnnotations map[string]string, keys []string, expected map[string]string) {
+			obj := &metav1.ObjectMeta{Annotations: initAnnotations}
+			DeleteAnnotations(obj, keys)
+			Expect(obj.Annotations).To(Equal(expected))
+		},
+		Entry("keys present", map[string]string{"foo": "bar", "bar": "baz"}, []string{"foo", "bar"}, map[string]string{}),
+		Entry("some keys present", map[string]string{"foo": "bar", "bar": "baz"}, []string{"foo"}, map[string]string{"bar": "baz"}),
+		Entry("no keys present", map[string]string{"foo": "bar", "bar": "baz"}, []string{"qux"}, map[string]string{"foo": "bar", "bar": "baz"}),
+		Entry("nil map", nil, []string{"foo", "bar"}, nil),
 	)
 
 	Describe("FilterList", func() {
