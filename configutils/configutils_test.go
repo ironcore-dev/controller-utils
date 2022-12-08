@@ -17,10 +17,16 @@ package configutils
 import (
 	"flag"
 	"os"
+	"path/filepath"
 
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apiserver"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	apiserverv1beta1 "k8s.io/apiserver/pkg/apis/apiserver/v1beta1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -31,11 +37,25 @@ func setKubeconfigFlag(kubeconfig string) {
 }
 
 var _ = ginkgo.Describe("Configutils", func() {
+	apiServerSerializer := json.NewSerializerWithOptions(
+		json.DefaultMetaFactory,
+		apiserver.Scheme,
+		apiserver.Scheme,
+		json.SerializerOptions{
+			Yaml: true,
+		},
+	)
+
 	ginkgo.Describe("GetConfig", func() {
+
 		var (
-			apiConfig   *clientcmdapi.Config
-			config      *rest.Config
-			otherConfig *rest.Config
+			apiConfig    *clientcmdapi.Config
+			egressConfig *apiserverv1beta1.EgressSelectorConfiguration
+			config       *rest.Config
+			otherConfig  *rest.Config
+
+			configFile       string
+			egressConfigFile string
 		)
 		ginkgo.BeforeEach(func() {
 			apiConfig = &clientcmdapi.Config{
@@ -71,6 +91,31 @@ var _ = ginkgo.Describe("Configutils", func() {
 			otherConfig = &rest.Config{
 				Host: "http://other.example.org",
 			}
+			egressConfig = &apiserverv1beta1.EgressSelectorConfiguration{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: apiserverv1beta1.SchemeGroupVersion.String(),
+					Kind:       "EgressSelectorConfiguration",
+				},
+				EgressSelections: []apiserverv1beta1.EgressSelection{
+					{
+						Name: "controlplane",
+						Connection: apiserverv1beta1.Connection{
+							ProxyProtocol: apiserverv1beta1.ProtocolDirect,
+						},
+					},
+				},
+			}
+
+			tempDir := ginkgo.GinkgoT().TempDir()
+
+			configFile = filepath.Join(tempDir, "kubeconfig")
+			Expect(clientcmd.WriteToFile(*apiConfig, configFile)).To(Succeed())
+
+			egressConfigData, err := runtime.Encode(apiServerSerializer, egressConfig)
+			Expect(err).NotTo(HaveOccurred())
+
+			egressConfigFile = filepath.Join(tempDir, "egress-config.yaml")
+			Expect(os.WriteFile(egressConfigFile, egressConfigData, 0666)).To(Succeed())
 		})
 
 		ginkgo.It("should load the config at the kubeconfig path", func() {
@@ -120,6 +165,25 @@ var _ = ginkgo.Describe("Configutils", func() {
 		ginkgo.It("should error if the kubeconfig does not exist", func() {
 			setKubeconfigFlag("should definitely not exist - ever")
 			_, err := GetConfig()
+			Expect(err).To(HaveOccurred())
+		})
+
+		ginkgo.It("should load the kubeconfig and apply the egress selector", func() {
+			cfg, err := GetConfig(Kubeconfig(configFile), EgressSelectorConfig(egressConfigFile))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.Dial).NotTo(BeNil())
+		})
+
+		ginkgo.It("should error if the egress selector config file does not exist", func() {
+			_, err := GetConfig(Kubeconfig(configFile), EgressSelectorConfig("should-never-exist"))
+			Expect(err).To(HaveOccurred())
+		})
+
+		ginkgo.It("should error if the egress context does not exist", func() {
+			_, err := GetConfig(Kubeconfig(configFile),
+				EgressSelectorConfig(egressConfigFile),
+				WithEgressSelectionName(EgressSelectionNameEtcd),
+			)
 			Expect(err).To(HaveOccurred())
 		})
 	})

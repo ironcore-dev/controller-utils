@@ -21,6 +21,7 @@ import (
 	"os/user"
 	"path/filepath"
 
+	"k8s.io/apiserver/pkg/server/egressselector"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -32,6 +33,32 @@ var (
 	log = ctrl.Log.WithName("configutils")
 )
 
+// EgressSelectionName is the name of the egress configuration to use.
+type EgressSelectionName string
+
+const (
+	// EgressSelectionNameControlPlane instructs to use the controlplane egress selection.
+	EgressSelectionNameControlPlane EgressSelectionName = "controlplane"
+	// EgressSelectionNameEtcd instructs to use the etcd egress selection.
+	EgressSelectionNameEtcd EgressSelectionName = "etcd"
+	// EgressSelectionNameCluster instructs to use the cluster egress selection.
+	EgressSelectionNameCluster EgressSelectionName = "cluster"
+)
+
+// NetworkContext returns the corresponding network context of the egress selection.
+func (n EgressSelectionName) NetworkContext() (egressselector.NetworkContext, error) {
+	switch n {
+	case EgressSelectionNameControlPlane:
+		return egressselector.ControlPlane.AsNetworkContext(), nil
+	case EgressSelectionNameEtcd:
+		return egressselector.Etcd.AsNetworkContext(), nil
+	case EgressSelectionNameCluster:
+		return egressselector.Cluster.AsNetworkContext(), nil
+	default:
+		return egressselector.NetworkContext{}, fmt.Errorf("unknown egress selection name %q", n)
+	}
+}
+
 // GetConfigOptions are options to supply for a GetConfig call.
 type GetConfigOptions struct {
 	// Context is the kubeconfig context to load.
@@ -39,6 +66,11 @@ type GetConfigOptions struct {
 	// Kubeconfig is the path to a kubeconfig to load.
 	// If unset, the '--kubeconfig' flag is used.
 	Kubeconfig *string
+	// EgressSelectorConfig is the path to an egress selector config to load.
+	EgressSelectorConfig string
+	// EgressSelectionName is the name of the egress configuration to use.
+	// Defaults to EgressSelectionNameControlPlane.
+	EgressSelectionName EgressSelectionName
 }
 
 // ApplyToGetConfig implements GetConfigOption.
@@ -48,6 +80,12 @@ func (o *GetConfigOptions) ApplyToGetConfig(o2 *GetConfigOptions) {
 	}
 	if o.Kubeconfig != nil {
 		o2.Kubeconfig = pointer.String(*o.Kubeconfig)
+	}
+	if o.EgressSelectorConfig != "" {
+		o2.EgressSelectorConfig = o.EgressSelectorConfig
+	}
+	if o.EgressSelectionName != "" {
+		o2.EgressSelectionName = o.EgressSelectionName
 	}
 }
 
@@ -72,6 +110,20 @@ type Context string
 // ApplyToGetConfig implements GetConfigOption.
 func (c Context) ApplyToGetConfig(o *GetConfigOptions) {
 	o.Context = string(c)
+}
+
+// EgressSelectorConfig allows specifying the path to an egress selector config to use.
+type EgressSelectorConfig string
+
+func (c EgressSelectorConfig) ApplyToGetConfig(o *GetConfigOptions) {
+	o.EgressSelectorConfig = string(c)
+}
+
+type WithEgressSelectionName EgressSelectionName
+
+// ApplyToGetConfig implements GetConfigOption.
+func (w WithEgressSelectionName) ApplyToGetConfig(o *GetConfigOptions) {
+	o.EgressSelectionName = EgressSelectionName(w)
 }
 
 // GetConfigOption are options to a GetConfig call.
@@ -105,6 +157,12 @@ func getKubeconfigFlag() string {
 	return f.Value.String()
 }
 
+func setGetConfigOptionsDefaults(o *GetConfigOptions) {
+	if o.EgressSelectionName == "" {
+		o.EgressSelectionName = EgressSelectionNameControlPlane
+	}
+}
+
 // GetConfig creates a *rest.Config for talking to a Kubernetes API server.
 // Kubeconfig / the '--kubeconfig' flag instruct to use the kubeconfig file at that location.
 // Otherwise, will assume running in cluster and use the cluster provided kubeconfig.
@@ -124,6 +182,7 @@ func getKubeconfigFlag() string {
 func GetConfig(opts ...GetConfigOption) (*rest.Config, error) {
 	o := &GetConfigOptions{}
 	o.ApplyOptions(opts)
+	setGetConfigOptionsDefaults(o)
 
 	var kubeconfig string
 	if o.Kubeconfig != nil {
@@ -132,9 +191,22 @@ func GetConfig(opts ...GetConfigOption) (*rest.Config, error) {
 		kubeconfig = getKubeconfigFlag()
 	}
 
+	cfg, err := loadConfig(kubeconfig, o.Context)
+	if err != nil {
+		return nil, fmt.Errorf("error loading config: %w", err)
+	}
+
+	if err := applyEgressSelector(o.EgressSelectorConfig, o.EgressSelectionName, cfg); err != nil {
+		return nil, fmt.Errorf("error applying egress selector: %w", err)
+	}
+
+	return cfg, nil
+}
+
+func loadConfig(kubeconfig, context string) (*rest.Config, error) {
 	// If a flag is specified with the config location, use that
 	if len(kubeconfig) > 0 {
-		return loadConfigWithContext("", &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig}, o.Context)
+		return loadConfigWithContext("", &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig}, context)
 	}
 
 	// If the recommended kubeconfig env variable is not specified,
@@ -155,7 +227,39 @@ func GetConfig(opts ...GetConfigOption) (*rest.Config, error) {
 		loadingRules.Precedence = append(loadingRules.Precedence, filepath.Join(u.HomeDir, clientcmd.RecommendedHomeDir, clientcmd.RecommendedFileName))
 	}
 
-	return loadConfigWithContext("", loadingRules, o.Context)
+	return loadConfigWithContext("", loadingRules, context)
+}
+
+func applyEgressSelector(egressSelectorConfig string, egressSelectionName EgressSelectionName, cfg *rest.Config) error {
+	if egressSelectorConfig == "" {
+		return nil
+	}
+
+	networkContext, err := egressSelectionName.NetworkContext()
+	if err != nil {
+		return fmt.Errorf("error obtaining network context: %w", err)
+	}
+
+	egressSelectorCfg, err := egressselector.ReadEgressSelectorConfiguration(egressSelectorConfig)
+	if err != nil {
+		return fmt.Errorf("error reading egress selector configuration: %w", err)
+	}
+
+	egressSelector, err := egressselector.NewEgressSelector(egressSelectorCfg)
+	if err != nil {
+		return fmt.Errorf("error creating egress selector: %w", err)
+	}
+
+	dial, err := egressSelector.Lookup(networkContext)
+	if err != nil {
+		return fmt.Errorf("error looking up network context %s: %w", networkContext.EgressSelectionName.String(), err)
+	}
+	if dial == nil {
+		return fmt.Errorf("no dialer for network context %s", networkContext.EgressSelectionName.String())
+	}
+
+	cfg.Dial = dial
+	return nil
 }
 
 // GetConfigOrDie creates a *rest.Config for talking to a Kubernetes apiserver.
