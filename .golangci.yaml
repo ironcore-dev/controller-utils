@@ -1,5 +1,6 @@
 run:
-  timeout: 3m
+  concurrency: 4
+  timeout: 10m
 
 linters:
   enable:
@@ -7,6 +8,8 @@ linters:
     - ineffassign
     - misspell
     - goimports
+    - importas
+    - unused
 
 severity:
   default-severity: error
@@ -15,5 +18,8 @@ linters-settings:
   revive:
     severity: error
     rules:
+      - name: exported
+        arguments:
+          - disableStutteringCheck
       - name: if-return
         disabled: true
