@@ -168,4 +168,12 @@ var _ = Describe("Set", func() {
 			Expect(SortedSlice(s)).To(Equal([]int{1, 3, 5, 7, 10}))
 		})
 	})
+
+	Describe("SortedSliceFunc", func() {
+		It("should return an ordered slice of the items depending on the less function", func() {
+			s := New[int](5, 1, 10, 7, 3)
+
+			Expect(SortedSliceFunc(s, func(v1, v2 int) bool { return v1 > v2 })).To(Equal([]int{10, 7, 5, 3, 1}))
+		})
+	})
 })

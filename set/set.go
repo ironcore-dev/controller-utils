@@ -183,3 +183,15 @@ func SortedSlice[E constraints.Ordered](set Set[E]) []E {
 	})
 	return res
 }
+
+// SortedSliceFunc takes a Set and converts it to a slice, sorting it by less.
+func SortedSliceFunc[E comparable](set Set[E], less func(e1, e2 E) bool) []E {
+	res := make([]E, 0, len(set))
+	for item := range set {
+		res = append(res, item)
+	}
+	sort.Slice(res, func(i, j int) bool {
+		return less(res[i], res[j])
+	})
+	return res
+}
