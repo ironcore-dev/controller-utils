@@ -33,6 +33,15 @@ func New[E comparable](items ...E) Set[E] {
 	return ss
 }
 
+// Keys returns a Set of the given map's keys.
+func Keys[K comparable, V any](m map[K]V) Set[K] {
+	s := make(Set[K], len(m))
+	for key := range m {
+		s.Insert(key)
+	}
+	return s
+}
+
 // Insert adds items to the set.
 func (s Set[E]) Insert(items ...E) Set[E] {
 	for _, item := range items {

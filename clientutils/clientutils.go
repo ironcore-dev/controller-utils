@@ -42,6 +42,7 @@ type clientMeta interface {
 type nonReaderClient interface {
 	client.Writer
 	client.StatusClient
+	client.SubResourceClientConstructor
 	clientMeta
 }
 

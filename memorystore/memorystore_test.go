@@ -178,12 +178,6 @@ var _ = Describe("Store", func() {
 		)
 	})
 
-	Describe("Status", func() {
-		It("should return the store itself", func() {
-			Expect(s.Status()).Should(Equal(s))
-		})
-	})
-
 	Describe("Delete", func() {
 		It("should delete the specified object", func() {
 			Expect(s.Create(ctx, cm1)).To(Succeed())

@@ -16,10 +16,10 @@ package switches
 import (
 	"flag"
 
+	"github.com/onmetal/controller-utils/set"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/pflag"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var _ = Describe("CMD Switches", func() {
@@ -34,26 +34,26 @@ var _ = Describe("CMD Switches", func() {
 			s := New("runner-a", "runner-b", Disable("runner-c"))
 			Expect(s.Set("*,-runner-b")).ToNot(HaveOccurred())
 
-			expected := sets.NewString("runner-a", "runner-b", "runner-c")
+			expected := set.New("runner-a", "runner-b", "runner-c")
 			Expect(s.All()).To(Equal(expected))
 		})
 		It("should return only active items", func() {
 			s := New("runner-a", "runner-b", Disable("runner-c"))
 			Expect(s.Set("*,-runner-b")).ToNot(HaveOccurred())
 
-			expected := sets.NewString("runner-a")
+			expected := set.New("runner-a")
 			Expect(s.Active()).To(Equal(expected))
 		})
 		It("should return all enabled items", func() {
 			s := New("runner-a", Disable("runner-b"))
 
-			expected := sets.NewString("runner-a")
+			expected := set.New("runner-a")
 			Expect(s.EnabledByDefault()).To(Equal(expected))
 		})
 		It("should return all disabled items", func() {
 			s := New("runner-a", Disable("runner-b"))
 
-			expected := sets.NewString("runner-b")
+			expected := set.New("runner-b")
 			Expect(s.DisabledByDefault()).To(Equal(expected))
 		})
 		It("should return string", func() {

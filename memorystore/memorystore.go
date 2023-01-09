@@ -178,12 +178,6 @@ func (s *Store) List(_ context.Context, list client.ObjectList, opts ...client.L
 	return metautils.ConvertAndSetList(s.scheme, list, res)
 }
 
-// Status implements client.Status.
-// Caution: Status does not disallow updates to fields other than status.
-func (s *Store) Status() client.StatusWriter {
-	return s
-}
-
 func validateClientDeleteOptions(opts *client.DeleteOptions) error {
 	if opts.DryRun != nil {
 		return fmt.Errorf("dry run is not supported")

@@ -22,7 +22,7 @@ import (
 	"sort"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/util/sets"
+	"github.com/onmetal/controller-utils/set"
 )
 
 const (
@@ -119,18 +119,13 @@ func (s *Switches) Enabled(name string) bool {
 }
 
 // All returns names of all items set in settings
-func (s *Switches) All() sets.String {
-	names := sets.NewString()
-	for k := range s.defaults {
-		names.Insert(k)
-	}
-
-	return names
+func (s *Switches) All() set.Set[string] {
+	return set.Keys(s.defaults)
 }
 
 // Active returns names of all active items
-func (s *Switches) Active() sets.String {
-	names := sets.NewString()
+func (s *Switches) Active() set.Set[string] {
+	names := set.New[string]()
 	for k, enabled := range s.settings {
 		if enabled {
 			names.Insert(k)
@@ -141,8 +136,8 @@ func (s *Switches) Active() sets.String {
 }
 
 // EnabledByDefault returns names of all enabled items
-func (s *Switches) EnabledByDefault() sets.String {
-	names := sets.NewString()
+func (s *Switches) EnabledByDefault() set.Set[string] {
+	names := set.New[string]()
 	for k, enabled := range s.defaults {
 		if enabled {
 			names.Insert(k)
@@ -153,8 +148,8 @@ func (s *Switches) EnabledByDefault() sets.String {
 }
 
 // DisabledByDefault returns names of all disabled items
-func (s *Switches) DisabledByDefault() sets.String {
-	names := sets.NewString()
+func (s *Switches) DisabledByDefault() set.Set[string] {
+	names := set.New[string]()
 	for k, enabled := range s.defaults {
 		if !enabled {
 			names.Insert(k)
