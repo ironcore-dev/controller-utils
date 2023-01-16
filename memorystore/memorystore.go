@@ -111,7 +111,13 @@ func (s *Store) Create(_ context.Context, obj client.Object, opts ...client.Crea
 }
 
 // Get implements client.Get.
-func (s *Store) Get(_ context.Context, objectKey client.ObjectKey, obj client.Object) error {
+func (s *Store) Get(_ context.Context, objectKey client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	o := &client.GetOptions{}
+	o.ApplyOptions(opts)
+	if err := validateClientGetOptions(o); err != nil {
+		return err
+	}
+
 	key, err := clientutils.ObjectRefFromObject(s.scheme, obj)
 	if err != nil {
 		return err
@@ -127,6 +133,13 @@ func (s *Store) Get(_ context.Context, objectKey client.ObjectKey, obj client.Ob
 	}
 
 	return s.scheme.Convert(v, obj, nil)
+}
+
+func validateClientGetOptions(opts *client.GetOptions) error {
+	if opts.Raw != nil {
+		return fmt.Errorf("raw is not supported")
+	}
+	return nil
 }
 
 func validateClientListOptions(opts *client.ListOptions) error {
