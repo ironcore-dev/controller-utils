@@ -42,6 +42,9 @@ type Store struct {
 	entries map[clientutils.ObjectRef]client.Object
 }
 
+// ensure Store implements client.Client
+var _ client.Client = (*Store)(nil)
+
 // Objects returns all objects that are stored in this store.
 func (s *Store) Objects() []client.Object {
 	res := make([]client.Object, 0, len(s.entries))
@@ -303,6 +306,43 @@ func (s *Store) Update(_ context.Context, obj client.Object, opts ...client.Upda
 // Patch implements client.Patch.
 // Caution: Patch is not supported / implemented.
 func (s *Store) Patch(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
+	return fmt.Errorf("patch is not supported")
+}
+
+// Status implements client.StatusClient.
+func (s *Store) Status() client.SubResourceWriter {
+	return s.SubResource("status")
+}
+
+func (s *Store) SubResource(subResource string) client.SubResourceClient {
+	return &subResourceClient{client: s, subResource: subResource}
+}
+
+// subResourceClient is client.SubResourceWriter that writes to subresources.
+type subResourceClient struct {
+	client      *Store
+	subResource string
+}
+
+// ensure subResourceClient implements client.SubResourceClient.
+var _ client.SubResourceClient = (*subResourceClient)(nil)
+
+func (sc *subResourceClient) Get(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceGetOption) error {
+	return fmt.Errorf("get is not supported")
+}
+
+// Create implements client.SubResourceClient
+func (sc *subResourceClient) Create(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceCreateOption) error {
+	return fmt.Errorf("create is not supported")
+}
+
+// Update implements client.SubResourceClient
+func (sc *subResourceClient) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+	return fmt.Errorf("update is not supported")
+}
+
+// Patch implements client.SubResourceWriter.
+func (sc *subResourceClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
 	return fmt.Errorf("patch is not supported")
 }
 
