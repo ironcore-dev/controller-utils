@@ -39,8 +39,8 @@ check-license: addlicense ## Check that every file has a license header present.
 	find . -name '*.go' -exec $(ADDLICENSE)  -check -c 'OnMetal authors' {} +
 
 .PHONY: generate
-generate: ## Generate code (mocks etc.).
-	go generate ./...
+generate: mockgen ## Generate code (mocks etc.).
+	MOCKGEN=$(MOCKGEN) go generate ./...
 
 .PHONY: test
 test: generate fmt vet check-license test-only ## Run tests.
@@ -50,7 +50,7 @@ test-only: ## Run tests only without generating / checking anything before.
 	go test ./... -coverprofile cover.out
 
 .PHONY: check
-check: generate addlicense fmt lint test-only ## Check the codebase. Useful before committing / pushing.
+check: generate add-license fmt lint test-only ## Check the codebase. Useful before committing / pushing.
 
 ##@ Tools
 
@@ -62,10 +62,12 @@ $(LOCALBIN):
 ## Tool Binaries
 ADDLICENSE ?= $(LOCALBIN)/addlicense
 GOIMPORTS ?= $(LOCALBIN)/goimports
+MOCKGEN ?= $(LOCALBIN)/mockgen
 
 ## Tool Versions
 ADDLICENSE_VERSION ?= v1.1.0
 GOIMPORTS_VERSION ?= v0.5.0
+MOCKGEN_VERSION ?= v1.6.0
 
 .PHONY: addlicense
 addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.
@@ -76,4 +78,9 @@ $(ADDLICENSE): $(LOCALBIN)
 goimports: $(GOIMPORTS) ## Download goimports locally if necessary.
 $(GOIMPORTS): $(LOCALBIN)
 	test -s $(LOCALBIN)/goimports || GOBIN=$(LOCALBIN) go install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
+
+.PHONY: mockgen
+mockgen: $(MOCKGEN)
+$(MOCKGEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/mockgen || GOBIN=$(LOCALBIN) go install github.com/golang/mock/mockgen@$(MOCKGEN_VERSION)
 
