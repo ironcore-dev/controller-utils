@@ -73,7 +73,7 @@ MOCKGEN ?= $(LOCALBIN)/mockgen
 ## Tool Versions
 ADDLICENSE_VERSION ?= v1.1.0
 GOIMPORTS_VERSION ?= v0.5.0
-MOCKGEN_VERSION ?= v1.6.0
+MOCKGEN_VERSION ?= v1.5.0
 
 .PHONY: addlicense
 addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.
