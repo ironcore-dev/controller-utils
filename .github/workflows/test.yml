@@ -19,4 +19,4 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.20
-      - run: make test checklicense
+      - run: make test check-license
