@@ -22,6 +22,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -317,13 +318,34 @@ func NewListForGVK(scheme *runtime.Scheme, gvk schema.GroupVersionKind) (client.
 }
 
 // NewListForObject creates a new client.ObjectList for the given singular client.Object.
-func NewListForObject(scheme *runtime.Scheme, obj client.Object) (client.ObjectList, error) {
-	gvk, err := apiutil.GVKForObject(obj, scheme)
-	if err != nil {
-		return nil, err
+//
+// This method disambiguates depending on the type of the given object:
+// * If the given object is *unstructured.Unstructured, an *unstructured.UnstructuredList will be returned.
+// * If the given object is *metav1.PartialObjectMetadata, a *metav1.PartialObjectMetadataList will be returned.
+// * For all other cases, a new object with the corresponding kind will be created using scheme.New().
+func NewListForObject(scheme *runtime.Scheme, obj client.Object) (schema.GroupVersionKind, client.ObjectList, error) {
+	switch obj.(type) {
+	case *unstructured.Unstructured:
+		gvk := obj.GetObjectKind().GroupVersionKind()
+		list := &unstructured.UnstructuredList{}
+		list.SetGroupVersionKind(gvk)
+		return gvk, list, nil
+	case *metav1.PartialObjectMetadata:
+		gvk := obj.GetObjectKind().GroupVersionKind()
+		list := &metav1.PartialObjectMetadataList{}
+		list.SetGroupVersionKind(gvk)
+		return gvk, list, nil
+	default:
+		gvk, err := apiutil.GVKForObject(obj, scheme)
+		if err != nil {
+			return schema.GroupVersionKind{}, nil, fmt.Errorf("error getting gvk for %T: %w", obj, err)
+		}
+		list, err := NewListForGVK(scheme, gvk)
+		if err != nil {
+			return schema.GroupVersionKind{}, nil, fmt.Errorf("error creating list for %s: %w", gvk, err)
+		}
+		return gvk, list, nil
 	}
-
-	return NewListForGVK(scheme, gvk)
 }
 
 // EachListItem traverses over all items of the client.ObjectList.

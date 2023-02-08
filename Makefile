@@ -18,26 +18,62 @@ help: ## Display this help.
 
 ##@ Development
 
-.PHONY: addlicense
-addlicense: ## Add license headers to all go files.
-	go run github.com/google/addlicense -c 'OnMetal authors' **/*.go
+.PHONY: add-license
+add-license: addlicense ## Add license headers to all go files.
+	find . -name '*.go' -exec $(ADDLICENSE) -c 'OnMetal authors' {} +
+
+.PHONY: fmt
+fmt: goimports ## Run goimports against code.
+	$(GOIMPORTS) -w .
+
+.PHONY: vet
+vet: ## Run go vet against code.
+	go vet ./...
+
+.PHONY: lint
+lint: ## Lints the code-base using golangci-lint.
+	golangci-lint run ./...
+
+.PHONY: check-license
+check-license: addlicense ## Check that every file has a license header present.
+	find . -name '*.go' -exec $(ADDLICENSE)  -check -c 'OnMetal authors' {} +
 
 .PHONY: generate
 generate: ## Generate code (mocks etc.).
 	go generate ./...
 
 .PHONY: test
-test: ## Run tests.
+test: generate fmt vet check-license test-only ## Run tests.
+
+.PHONY: test-only
+test-only: ## Run tests only without generating / checking anything before.
 	go test ./... -coverprofile cover.out
 
-.PHONY: lint
-lint: ## Run the linter.
-	golangci-lint run ./...
-
-.PHONY: checklicense
-checklicense: ## Check that every file has a license header present.
-	go run github.com/google/addlicense -check -c 'OnMetal authors' **/*.go
-
 .PHONY: check
-check: generate lint addlicense test ## Execute multiple checks.
+check: generate addlicense fmt lint test-only ## Check the codebase. Useful before committing / pushing.
+
+##@ Tools
+
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+## Tool Binaries
+ADDLICENSE ?= $(LOCALBIN)/addlicense
+GOIMPORTS ?= $(LOCALBIN)/goimports
+
+## Tool Versions
+ADDLICENSE_VERSION ?= v1.1.0
+GOIMPORTS_VERSION ?= v0.5.0
+
+.PHONY: addlicense
+addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.
+$(ADDLICENSE): $(LOCALBIN)
+	test -s $(LOCALBIN)/addlicense || GOBIN=$(LOCALBIN) go install github.com/google/addlicense@$(ADDLICENSE_VERSION)
+
+.PHONY: goimports
+goimports: $(GOIMPORTS) ## Download goimports locally if necessary.
+$(GOIMPORTS): $(LOCALBIN)
+	test -s $(LOCALBIN)/goimports || GOBIN=$(LOCALBIN) go install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
 

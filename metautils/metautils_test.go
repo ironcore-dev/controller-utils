@@ -479,15 +479,47 @@ var _ = Describe("Metautils", func() {
 	})
 
 	Describe("NewListForObject", func() {
-		It("should create a new list for the given object", func() {
-			list, err := NewListForObject(scheme.Scheme, &corev1.Secret{})
+		var (
+			secretGVK schema.GroupVersionKind
+		)
+		BeforeEach(func() {
+			secretGVK = corev1.SchemeGroupVersion.WithKind("Secret")
+		})
+
+		It("should create a new list for the given typed object", func() {
+			gvk, list, err := NewListForObject(scheme.Scheme, &corev1.Secret{})
 			Expect(err).NotTo(HaveOccurred())
 
+			Expect(gvk).To(Equal(secretGVK))
 			Expect(list).To(Equal(&corev1.SecretList{}))
 		})
 
+		It("should create an unstructured list for the given unstructured object", func() {
+			u := &unstructured.Unstructured{}
+			u.SetGroupVersionKind(secretGVK)
+			gvk, list, err := NewListForObject(scheme.Scheme, u)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(gvk).To(Equal(corev1.SchemeGroupVersion.WithKind("Secret")))
+			uList := &unstructured.UnstructuredList{}
+			uList.SetGroupVersionKind(secretGVK)
+			Expect(list).To(Equal(uList))
+		})
+
+		It("should create a partial metadata list for the given partial metadata object", func() {
+			m := &metav1.PartialObjectMetadata{}
+			m.SetGroupVersionKind(secretGVK)
+			gvk, list, err := NewListForObject(scheme.Scheme, m)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(gvk).To(Equal(corev1.SchemeGroupVersion.WithKind("Secret")))
+			mList := &metav1.PartialObjectMetadataList{}
+			mList.SetGroupVersionKind(secretGVK)
+			Expect(list).To(Equal(mList))
+		})
+
 		It("should error if it cannot determine the gvk for the object", func() {
-			_, err := NewListForObject(scheme.Scheme, &unstructured.Unstructured{})
+			_, _, err := NewListForObject(scheme.Scheme, &struct{ corev1.Secret }{})
 			Expect(err).To(HaveOccurred())
 		})
 	})
