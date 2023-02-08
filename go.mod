@@ -1,6 +1,6 @@
 module github.com/onmetal/controller-utils
 
-go 1.19
+go 1.20
 
 require (
 	github.com/golang/mock v1.6.0
@@ -9,7 +9,6 @@ require (
 	github.com/onsi/gomega v1.26.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
-	golang.org/x/exp v0.0.0-20221006183845-316c7553db56
 	k8s.io/api v0.26.1
 	k8s.io/apiextensions-apiserver v0.26.1
 	k8s.io/apimachinery v0.26.1

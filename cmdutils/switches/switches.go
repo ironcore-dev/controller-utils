@@ -22,7 +22,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/onmetal/controller-utils/set"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -118,14 +118,34 @@ func (s *Switches) Enabled(name string) bool {
 	return s.settings[name]
 }
 
+// AllEnabled checks whether all switches with the given names are enabled.
+func (s *Switches) AllEnabled(names ...string) bool {
+	for _, name := range names {
+		if !s.settings[name] {
+			return false
+		}
+	}
+	return true
+}
+
+// AnyEnabled checks whether any switch of the given names is enabled.
+func (s *Switches) AnyEnabled(names ...string) bool {
+	for _, name := range names {
+		if s.settings[name] {
+			return true
+		}
+	}
+	return false
+}
+
 // All returns names of all items set in settings
-func (s *Switches) All() set.Set[string] {
-	return set.Keys(s.defaults)
+func (s *Switches) All() sets.Set[string] {
+	return sets.KeySet(s.defaults)
 }
 
 // Active returns names of all active items
-func (s *Switches) Active() set.Set[string] {
-	names := set.New[string]()
+func (s *Switches) Active() sets.Set[string] {
+	names := sets.New[string]()
 	for k, enabled := range s.settings {
 		if enabled {
 			names.Insert(k)
@@ -135,9 +155,18 @@ func (s *Switches) Active() set.Set[string] {
 	return names
 }
 
+// Values returns the switches with their values.
+func (s *Switches) Values() map[string]bool {
+	res := make(map[string]bool, len(s.defaults))
+	for key := range s.defaults {
+		res[key] = s.settings[key]
+	}
+	return res
+}
+
 // EnabledByDefault returns names of all enabled items
-func (s *Switches) EnabledByDefault() set.Set[string] {
-	names := set.New[string]()
+func (s *Switches) EnabledByDefault() sets.Set[string] {
+	names := sets.New[string]()
 	for k, enabled := range s.defaults {
 		if enabled {
 			names.Insert(k)
@@ -148,8 +177,8 @@ func (s *Switches) EnabledByDefault() set.Set[string] {
 }
 
 // DisabledByDefault returns names of all disabled items
-func (s *Switches) DisabledByDefault() set.Set[string] {
-	names := set.New[string]()
+func (s *Switches) DisabledByDefault() sets.Set[string] {
+	names := sets.New[string]()
 	for k, enabled := range s.defaults {
 		if !enabled {
 			names.Insert(k)
