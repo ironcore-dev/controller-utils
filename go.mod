@@ -8,11 +8,11 @@ require (
 	github.com/onsi/gomega v1.27.2
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.2
-	k8s.io/api v0.26.1
+	k8s.io/api v0.26.2
 	k8s.io/apiextensions-apiserver v0.26.1
-	k8s.io/apimachinery v0.26.1
+	k8s.io/apimachinery v0.26.2
 	k8s.io/apiserver v0.26.1
-	k8s.io/client-go v0.26.1
+	k8s.io/client-go v0.26.2
 	k8s.io/utils v0.0.0-20221128185143-99ec85e7a448
 	sigs.k8s.io/controller-runtime v0.14.4
 	sigs.k8s.io/kustomize/api v0.13.1
