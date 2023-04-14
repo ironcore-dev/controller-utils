@@ -375,14 +375,24 @@ func FilterList(list client.ObjectList, f func(obj client.Object) bool) error {
 	return SetList(list, filtered)
 }
 
+type ObjectLabels interface {
+	GetLabels() map[string]string
+	SetLabels(labels map[string]string)
+}
+
+type ObjectAnnotations interface {
+	GetAnnotations() map[string]string
+	SetAnnotations(annotations map[string]string)
+}
+
 // HasLabel checks if the object has a label with the given key.
-func HasLabel(obj metav1.Object, key string) bool {
+func HasLabel(obj ObjectLabels, key string) bool {
 	_, ok := obj.GetLabels()[key]
 	return ok
 }
 
 // SetLabel sets the given label on the object.
-func SetLabel(obj metav1.Object, key, value string) {
+func SetLabel(obj ObjectLabels, key, value string) {
 	labels := obj.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)
@@ -393,7 +403,7 @@ func SetLabel(obj metav1.Object, key, value string) {
 }
 
 // SetLabels sets the given labels on the object.
-func SetLabels(obj metav1.Object, set map[string]string) {
+func SetLabels(obj ObjectLabels, set map[string]string) {
 	labels := obj.GetLabels()
 	if labels == nil {
 		labels = set
@@ -406,14 +416,14 @@ func SetLabels(obj metav1.Object, set map[string]string) {
 }
 
 // DeleteLabel deletes the label with the given key from the object.
-func DeleteLabel(obj metav1.Object, key string) {
+func DeleteLabel(obj ObjectLabels, key string) {
 	labels := obj.GetLabels()
 	delete(labels, key)
 	obj.SetLabels(labels)
 }
 
 // DeleteLabels deletes the labels with the given keys from the object.
-func DeleteLabels(obj metav1.Object, keys []string) {
+func DeleteLabels(obj ObjectLabels, keys []string) {
 	labels := obj.GetLabels()
 	if len(labels) == 0 {
 		return
@@ -425,13 +435,13 @@ func DeleteLabels(obj metav1.Object, keys []string) {
 }
 
 // HasAnnotation checks if the object has an annotation with the given key.
-func HasAnnotation(obj metav1.Object, key string) bool {
+func HasAnnotation(obj ObjectAnnotations, key string) bool {
 	_, ok := obj.GetAnnotations()[key]
 	return ok
 }
 
 // SetAnnotation sets the given annotation on the object.
-func SetAnnotation(obj metav1.Object, key, value string) {
+func SetAnnotation(obj ObjectAnnotations, key, value string) {
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
 		annotations = make(map[string]string)
@@ -442,7 +452,7 @@ func SetAnnotation(obj metav1.Object, key, value string) {
 }
 
 // SetAnnotations sets the given annotations on the object.
-func SetAnnotations(obj metav1.Object, set map[string]string) {
+func SetAnnotations(obj ObjectAnnotations, set map[string]string) {
 	annotations := obj.GetAnnotations()
 	if annotations == nil {
 		annotations = set
@@ -455,14 +465,14 @@ func SetAnnotations(obj metav1.Object, set map[string]string) {
 }
 
 // DeleteAnnotation deletes the annotation with the given key from the object.
-func DeleteAnnotation(obj metav1.Object, key string) {
+func DeleteAnnotation(obj ObjectAnnotations, key string) {
 	annotations := obj.GetAnnotations()
 	delete(annotations, key)
 	obj.SetAnnotations(annotations)
 }
 
 // DeleteAnnotations deletes the annotations with the given keys from the object.
-func DeleteAnnotations(obj metav1.Object, keys []string) {
+func DeleteAnnotations(obj ObjectAnnotations, keys []string) {
 	annotations := obj.GetAnnotations()
 	if len(annotations) == 0 {
 		return
