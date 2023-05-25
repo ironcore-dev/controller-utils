@@ -22,14 +22,12 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apiserver"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	apiserverv1beta1 "k8s.io/apiserver/pkg/apis/apiserver/v1beta1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"sigs.k8s.io/yaml"
 )
 
 func setKubeconfigFlag(kubeconfig string) {
@@ -37,15 +35,6 @@ func setKubeconfigFlag(kubeconfig string) {
 }
 
 var _ = ginkgo.Describe("Configutils", func() {
-	apiServerSerializer := json.NewSerializerWithOptions(
-		json.DefaultMetaFactory,
-		apiserver.Scheme,
-		apiserver.Scheme,
-		json.SerializerOptions{
-			Yaml: true,
-		},
-	)
-
 	ginkgo.Describe("GetConfig", func() {
 
 		var (
@@ -111,7 +100,7 @@ var _ = ginkgo.Describe("Configutils", func() {
 			configFile = filepath.Join(tempDir, "kubeconfig")
 			Expect(clientcmd.WriteToFile(*apiConfig, configFile)).To(Succeed())
 
-			egressConfigData, err := runtime.Encode(apiServerSerializer, egressConfig)
+			egressConfigData, err := yaml.Marshal(egressConfig)
 			Expect(err).NotTo(HaveOccurred())
 
 			egressConfigFile = filepath.Join(tempDir, "egress-config.yaml")
