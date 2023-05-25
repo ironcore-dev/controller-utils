@@ -37,6 +37,8 @@ import (
 type clientMeta interface {
 	Scheme() *runtime.Scheme
 	RESTMapper() meta.RESTMapper
+	GroupVersionKindFor(obj runtime.Object) (schema.GroupVersionKind, error)
+	IsObjectNamespaced(obj runtime.Object) (bool, error)
 }
 
 type nonReaderClient interface {
