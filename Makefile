@@ -73,7 +73,7 @@ MOCKGEN ?= $(LOCALBIN)/mockgen
 ## Tool Versions
 ADDLICENSE_VERSION ?= v1.1.0
 GOIMPORTS_VERSION ?= v0.5.0
-MOCKGEN_VERSION ?= v1.5.0
+MOCKGEN_VERSION ?= v0.2.0
 
 .PHONY: addlicense
 addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.
@@ -88,5 +88,4 @@ $(GOIMPORTS): $(LOCALBIN)
 .PHONY: mockgen
 mockgen: $(MOCKGEN)
 $(MOCKGEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/mockgen || GOBIN=$(LOCALBIN) go install github.com/golang/mock/mockgen@$(MOCKGEN_VERSION)
-
+	test -s $(LOCALBIN)/mockgen || GOBIN=$(LOCALBIN) go install go.uber.org/mock/mockgen@$(MOCKGEN_VERSION)
