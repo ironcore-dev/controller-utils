@@ -3,11 +3,11 @@ module github.com/onmetal/controller-utils
 go 1.20
 
 require (
-	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.9
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
+	go.uber.org/mock v0.2.0
 	k8s.io/api v0.27.4
 	k8s.io/apiextensions-apiserver v0.27.4
 	k8s.io/apimachinery v0.27.4

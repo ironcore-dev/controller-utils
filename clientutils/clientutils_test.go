@@ -21,7 +21,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/golang/mock/gomock"
 	. "github.com/onmetal/controller-utils/clientutils"
 	mockclient "github.com/onmetal/controller-utils/mock/controller-runtime/client"
 	mockclientutils "github.com/onmetal/controller-utils/mock/controller-utils/clientutils"
@@ -29,6 +28,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
