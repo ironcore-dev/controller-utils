@@ -4,14 +4,14 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     open-pull-requests-limit: 10
     reviewers:
-      - "onmetal/onmetal-api-maintainers"
+      - "ironcore-dev/core"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     open-pull-requests-limit: 10
     reviewers:
-      - "onmetal/onmetal-api-maintainers"
+      - "ironcore-dev/core"

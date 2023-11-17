@@ -1,4 +1,4 @@
-// Copyright 2021 OnMetal authors
+// Copyright 2021 IronCore authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 package kustomizeutils
 
 import (
-	"github.com/onmetal/controller-utils/testdata"
+	"github.com/ironcore-dev/controller-utils/testdata"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -85,7 +85,7 @@ var _ = Describe("Kustomizeutils", func() {
 			res, err := resource.NewFactory(&hasher.Hasher{}).FromBytes([]byte(testdata.ConfigMapYAML))
 			Expect(err).NotTo(HaveOccurred())
 			resMap := resmap.New()
-			Expect(resMap.Append(res))
+			Expect(resMap.Append(res)).To(Succeed())
 
 			list := &corev1.ConfigMapList{}
 			Expect(DecodeResMapIntoList(scheme.Codecs.UniversalDeserializer(), resMap, list)).To(Succeed())
@@ -106,7 +106,7 @@ var _ = Describe("Kustomizeutils", func() {
 		res, err := resource.NewFactory(&hasher.Hasher{}).FromBytes([]byte(testdata.ConfigMapYAML))
 		Expect(err).NotTo(HaveOccurred())
 		resMap := resmap.New()
-		Expect(resMap.Append(res))
+		Expect(resMap.Append(res)).To(Succeed())
 
 		unstructureds, err := DecodeResMapUnstructureds(resMap)
 		Expect(err).NotTo(HaveOccurred())

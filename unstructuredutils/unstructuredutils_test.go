@@ -1,4 +1,4 @@
-// Copyright 2021 OnMetal authors
+// Copyright 2021 IronCore authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/onmetal/controller-utils/testdata"
-	. "github.com/onmetal/controller-utils/unstructuredutils"
+	"github.com/ironcore-dev/controller-utils/testdata"
+	. "github.com/ironcore-dev/controller-utils/unstructuredutils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"

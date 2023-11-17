@@ -1,4 +1,4 @@
-// Copyright 2021 OnMetal authors
+// Copyright 2021 IronCore authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ import (
 	"reflect"
 	"strings"
 
-	. "github.com/onmetal/controller-utils/metautils"
-	mockmetautils "github.com/onmetal/controller-utils/mock/controller-utils/metautils"
+	. "github.com/ironcore-dev/controller-utils/metautils"
+	mockmetautils "github.com/ironcore-dev/controller-utils/mock/controller-utils/metautils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
