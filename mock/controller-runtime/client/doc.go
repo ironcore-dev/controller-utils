@@ -1,4 +1,4 @@
-// Copyright 2021 OnMetal authors
+// Copyright 2021 IronCore authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 // Package client contains mocks for controller-runtime's client package.
 //
 //go:generate $MOCKGEN -copyright_file ../../../hack/boilerplate.go.txt -package client -destination mocks.go sigs.k8s.io/controller-runtime/pkg/client Client,FieldIndexer
-//go:generate $MOCKGEN -copyright_file ../../../hack/boilerplate.go.txt -package client -destination funcs.go github.com/onmetal/controller-utils/mock/controller-runtime/client IndexerFunc
+//go:generate $MOCKGEN -copyright_file ../../../hack/boilerplate.go.txt -package client -destination funcs.go github.com/ironcore-dev/controller-utils/mock/controller-runtime/client IndexerFunc
 package client
 
 import "sigs.k8s.io/controller-runtime/pkg/client"

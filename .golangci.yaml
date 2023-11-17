@@ -10,6 +10,7 @@ linters:
     - goimports
     - importas
     - unused
+    - ginkgolinter
 
 severity:
   default-severity: error

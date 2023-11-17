@@ -1,4 +1,4 @@
-// Copyright 2021 OnMetal authors
+// Copyright 2021 IronCore authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,10 +21,10 @@ import (
 	"reflect"
 	"strings"
 
-	. "github.com/onmetal/controller-utils/clientutils"
-	mockclient "github.com/onmetal/controller-utils/mock/controller-runtime/client"
-	mockclientutils "github.com/onmetal/controller-utils/mock/controller-utils/clientutils"
-	"github.com/onmetal/controller-utils/testdata"
+	. "github.com/ironcore-dev/controller-utils/clientutils"
+	mockclient "github.com/ironcore-dev/controller-utils/mock/controller-runtime/client"
+	mockclientutils "github.com/ironcore-dev/controller-utils/mock/controller-utils/clientutils"
+	"github.com/ironcore-dev/controller-utils/testdata"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
@@ -132,13 +132,13 @@ var _ = Describe("Clientutils", func() {
 	Describe("IgnoreAlreadyExists", func() {
 		It("should ignore already exists errors", func() {
 			alreadyExistsErr := IgnoreAlreadyExists(apierrors.NewAlreadyExists(cmGR, ""))
-			Expect(IgnoreAlreadyExists(alreadyExistsErr)).To(BeNil())
+			Expect(IgnoreAlreadyExists(alreadyExistsErr)).To(Succeed())
 		})
 
 		It("should not ignore other errors or nil", func() {
 			err := fmt.Errorf("some error")
 			Expect(IgnoreAlreadyExists(err)).To(BeIdenticalTo(err))
-			Expect(IgnoreAlreadyExists(nil)).To(BeNil())
+			Expect(IgnoreAlreadyExists(nil)).To(Succeed())
 		})
 	})
 

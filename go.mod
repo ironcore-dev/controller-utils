@@ -1,6 +1,6 @@
-module github.com/onmetal/controller-utils
+module github.com/ironcore-dev/controller-utils
 
-go 1.20
+go 1.21
 
 require (
 	github.com/onsi/ginkgo/v2 v2.13.1

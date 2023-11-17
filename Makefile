@@ -26,7 +26,7 @@ help: ## Display this help.
 
 .PHONY: add-license
 add-license: addlicense ## Add license headers to all go files.
-	find . -name '*.go' -exec $(ADDLICENSE) -c 'OnMetal authors' {} +
+	find . -name '*.go' -exec $(ADDLICENSE) -c 'IronCore authors' {} +
 
 .PHONY: fmt
 fmt: goimports ## Run goimports against code.
@@ -37,12 +37,12 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: lint
-lint: ## Lints the code-base using golangci-lint.
-	golangci-lint run ./...
+lint: golangci-lint ## Run golangci-lint on the code.
+	$(GOLANGCILINT) run ./...
 
 .PHONY: check-license
 check-license: addlicense ## Check that every file has a license header present.
-	find . -name '*.go' -exec $(ADDLICENSE)  -check -c 'OnMetal authors' {} +
+	find . -name '*.go' -exec $(ADDLICENSE)  -check -c 'IronCore authors' {} +
 
 .PHONY: generate
 generate: mockgen ## Generate code (mocks etc.).
@@ -69,11 +69,13 @@ $(LOCALBIN):
 ADDLICENSE ?= $(LOCALBIN)/addlicense
 GOIMPORTS ?= $(LOCALBIN)/goimports
 MOCKGEN ?= $(LOCALBIN)/mockgen
+GOLANGCILINT ?= $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
 ADDLICENSE_VERSION ?= v1.1.1
-GOIMPORTS_VERSION ?= v0.13.0
+GOIMPORTS_VERSION ?= v0.14.0
 MOCKGEN_VERSION ?= v0.3.0
+GOLANGCILINT_VERSION ?= v1.55.2
 
 .PHONY: addlicense
 addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.
@@ -89,3 +91,8 @@ $(GOIMPORTS): $(LOCALBIN)
 mockgen: $(MOCKGEN) ## Download mockgen locally if necessary.
 $(MOCKGEN): $(LOCALBIN)
 	test -s $(LOCALBIN)/mockgen || GOBIN=$(LOCALBIN) go install go.uber.org/mock/mockgen@$(MOCKGEN_VERSION)
+
+.PHONY: goimports
+golangci-lint: $(GOLANGCILINT) ## Download golangci-lint locally if necessary.
+$(GOLANGCILINT): $(LOCALBIN)
+	test -s $(LOCALBIN)/golangci-lint || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCILINT_VERSION)
