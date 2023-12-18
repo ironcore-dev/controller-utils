@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -68,7 +68,7 @@ func (o *GetConfigOptions) ApplyToGetConfig(o2 *GetConfigOptions) {
 		o2.Context = o.Context
 	}
 	if o.Kubeconfig != nil {
-		o2.Kubeconfig = pointer.String(*o.Kubeconfig)
+		o2.Kubeconfig = ptr.To[string](*o.Kubeconfig)
 	}
 	if o.EgressSelectorConfig != "" {
 		o2.EgressSelectorConfig = o.EgressSelectorConfig
