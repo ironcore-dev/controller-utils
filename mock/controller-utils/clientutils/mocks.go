@@ -9,6 +9,7 @@
 //
 //	mockgen -copyright_file ../../../hack/boilerplate.go.txt -package clientutils -destination=mocks.go github.com/ironcore-dev/controller-utils/clientutils PatchProvider
 //
+
 // Package clientutils is a generated GoMock package.
 package clientutils
 
