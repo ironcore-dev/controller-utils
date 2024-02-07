@@ -9,6 +9,7 @@
 //
 //	mockgen -copyright_file ../../../hack/boilerplate.go.txt -package metautils -destination=funcs.go github.com/ironcore-dev/controller-utils/mock/controller-utils/metautils EachListItemFunc
 //
+
 // Package metautils is a generated GoMock package.
 package metautils
 

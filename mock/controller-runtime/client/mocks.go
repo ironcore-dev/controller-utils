@@ -9,6 +9,7 @@
 //
 //	mockgen -copyright_file ../../../hack/boilerplate.go.txt -package client -destination mocks.go sigs.k8s.io/controller-runtime/pkg/client Client,FieldIndexer
 //
+
 // Package client is a generated GoMock package.
 package client
 

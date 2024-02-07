@@ -9,6 +9,7 @@
 //
 //	mockgen -copyright_file ../../../hack/boilerplate.go.txt -package client -destination funcs.go github.com/ironcore-dev/controller-utils/mock/controller-runtime/client IndexerFunc
 //
+
 // Package client is a generated GoMock package.
 package client
 
