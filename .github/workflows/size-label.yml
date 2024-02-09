@@ -9,6 +9,7 @@ on:
 
 jobs:
   size-label:
+    name: size
     permissions:
       contents: read
       pull-requests: write
