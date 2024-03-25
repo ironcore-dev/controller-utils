@@ -3,7 +3,7 @@ module github.com/ironcore-dev/controller-utils
 go 1.21
 
 require (
-	github.com/onsi/ginkgo/v2 v2.17.0
+	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.31.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
