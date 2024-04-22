@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/onsi/ginkgo/v2 v2.17.1
-	github.com/onsi/gomega v1.32.0
+	github.com/onsi/gomega v1.33.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/mock v0.4.0
@@ -74,10 +74,10 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
-	golang.org/x/net v0.20.0 // indirect
+	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/oauth2 v0.12.0 // indirect
-	golang.org/x/sys v0.17.0 // indirect
-	golang.org/x/term v0.16.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
