@@ -116,7 +116,7 @@ func getAndConvertField(v reflect.Value, name string, into interface{}) error {
 // Otherwise, it returns a pointer to that value.
 func direct(v reflect.Value) reflect.Value {
 	if v.IsZero() {
-		return reflect.New(reflect.PtrTo(v.Type())).Elem()
+		return reflect.New(reflect.PointerTo(v.Type())).Elem()
 	}
 
 	res := reflect.New(v.Type())

@@ -9,7 +9,7 @@ Source: https://github.com/ironcore-dev/controller-utils
 Files:
   .github/*
   .gitignore
-  .golangci.yaml
+  .golangci.yml
   CODEOWNERS
   CODE_OF_CONDUCT.md
   CONTRIBUTING.md
