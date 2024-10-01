@@ -28,14 +28,13 @@ func ConvertAndSetList(scheme *runtime.Scheme, list runtime.Object, objs []runti
 		return err
 	}
 
-	var converted []runtime.Object
-	for _, obj := range objs {
+	converted := make([]runtime.Object, len(objs))
+	for i, obj := range objs {
 		into := reflect.New(elemType).Interface()
 		if err := scheme.Convert(obj, into, nil); err != nil {
 			return err
 		}
-
-		converted = append(converted, into.(runtime.Object))
+		converted[i] = into.(runtime.Object)
 	}
 	return meta.SetList(list, converted)
 }

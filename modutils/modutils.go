@@ -99,7 +99,6 @@ func (e *Executor) GetE(name string) (*Module, error) {
 			continue
 		}
 
-		mod := mod
 		return &mod, nil
 	}
 	return nil, fmt.Errorf("module %q not found", name)

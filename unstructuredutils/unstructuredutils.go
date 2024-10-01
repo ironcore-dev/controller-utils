@@ -63,7 +63,7 @@ func Read(r io.Reader) ([]unstructured.Unstructured, error) {
 	for {
 		ext := runtime.RawExtension{}
 		if err := d.Decode(&ext); err != nil {
-			if !errors.Is(io.EOF, err) {
+			if !errors.Is(err, io.EOF) {
 				return nil, fmt.Errorf("error parsing: %w", err)
 			}
 			return objs, nil
@@ -107,7 +107,6 @@ func UnstructuredSliceToObjectSlice(unstructureds []unstructured.Unstructured) [
 	}
 	res := make([]client.Object, 0, len(unstructureds))
 	for _, u := range unstructureds {
-		u := u
 		res = append(res, &u)
 	}
 	return res

@@ -488,10 +488,9 @@ func CreateOrUseAndPatch(
 	var (
 		base  = obj.DeepCopyObject().(client.Object)
 		best  client.Object
-		other []client.Object
+		other = make([]client.Object, 0, len(objects))
 	)
 	for _, object := range objects {
-		object := object
 		if err := setObject(obj, object); err != nil {
 			return controllerutil.OperationResultNone, nil, err
 		}
