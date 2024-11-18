@@ -24,6 +24,7 @@ import (
 type MockPatchProvider struct {
 	ctrl     *gomock.Controller
 	recorder *MockPatchProviderMockRecorder
+	isgomock struct{}
 }
 
 // MockPatchProviderMockRecorder is the mock recorder for MockPatchProvider.
@@ -44,15 +45,15 @@ func (m *MockPatchProvider) EXPECT() *MockPatchProviderMockRecorder {
 }
 
 // PatchFor mocks base method.
-func (m *MockPatchProvider) PatchFor(arg0 client.Object) client.Patch {
+func (m *MockPatchProvider) PatchFor(obj client.Object) client.Patch {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PatchFor", arg0)
+	ret := m.ctrl.Call(m, "PatchFor", obj)
 	ret0, _ := ret[0].(client.Patch)
 	return ret0
 }
 
 // PatchFor indicates an expected call of PatchFor.
-func (mr *MockPatchProviderMockRecorder) PatchFor(arg0 any) *gomock.Call {
+func (mr *MockPatchProviderMockRecorder) PatchFor(obj any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PatchFor", reflect.TypeOf((*MockPatchProvider)(nil).PatchFor), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PatchFor", reflect.TypeOf((*MockPatchProvider)(nil).PatchFor), obj)
 }

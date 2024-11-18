@@ -24,6 +24,7 @@ import (
 type MockIndexerFunc struct {
 	ctrl     *gomock.Controller
 	recorder *MockIndexerFuncMockRecorder
+	isgomock struct{}
 }
 
 // MockIndexerFuncMockRecorder is the mock recorder for MockIndexerFunc.
@@ -44,15 +45,15 @@ func (m *MockIndexerFunc) EXPECT() *MockIndexerFuncMockRecorder {
 }
 
 // Call mocks base method.
-func (m *MockIndexerFunc) Call(arg0 client.Object) []string {
+func (m *MockIndexerFunc) Call(object client.Object) []string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Call", arg0)
+	ret := m.ctrl.Call(m, "Call", object)
 	ret0, _ := ret[0].([]string)
 	return ret0
 }
 
 // Call indicates an expected call of Call.
-func (mr *MockIndexerFuncMockRecorder) Call(arg0 any) *gomock.Call {
+func (mr *MockIndexerFuncMockRecorder) Call(object any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Call", reflect.TypeOf((*MockIndexerFunc)(nil).Call), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Call", reflect.TypeOf((*MockIndexerFunc)(nil).Call), object)
 }

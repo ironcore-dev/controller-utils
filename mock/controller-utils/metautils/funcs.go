@@ -24,6 +24,7 @@ import (
 type MockEachListItemFunc struct {
 	ctrl     *gomock.Controller
 	recorder *MockEachListItemFuncMockRecorder
+	isgomock struct{}
 }
 
 // MockEachListItemFuncMockRecorder is the mock recorder for MockEachListItemFunc.
@@ -44,15 +45,15 @@ func (m *MockEachListItemFunc) EXPECT() *MockEachListItemFuncMockRecorder {
 }
 
 // Call mocks base method.
-func (m *MockEachListItemFunc) Call(arg0 client.Object) error {
+func (m *MockEachListItemFunc) Call(obj client.Object) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Call", arg0)
+	ret := m.ctrl.Call(m, "Call", obj)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Call indicates an expected call of Call.
-func (mr *MockEachListItemFuncMockRecorder) Call(arg0 any) *gomock.Call {
+func (mr *MockEachListItemFuncMockRecorder) Call(obj any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Call", reflect.TypeOf((*MockEachListItemFunc)(nil).Call), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Call", reflect.TypeOf((*MockEachListItemFunc)(nil).Call), obj)
 }
