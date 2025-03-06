@@ -4,7 +4,23 @@ SPDX-PackageSupplier = "IronCore authors <ospo@sap.com>"
 SPDX-PackageDownloadLocation = "https://github.com/ironcore-dev/controller-utils"
 
 [[annotations]]
-path = [".github/**", ".gitignore", ".golangci.yml", "CODEOWNERS", "CODE_OF_CONDUCT.md", "CONTRIBUTING.md", "Makefile", "go.mod", "go.sum", "testdata/bases/cm.yaml", "testdata/bases/objects.yaml", "testdata/kustomization.yaml", "testdata/testmod1/go.mod", "testdata/testmod2/go.mod"]
+path = [
+    ".github/**",
+    ".gitignore",
+    ".golangci.yml",
+    "CODEOWNERS",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "Makefile",
+    "go.mod",
+    "go.sum",
+    "testdata/bases/cm.yaml",
+    "testdata/bases/objects.yaml",
+    "testdata/kustomization.yaml",
+    "testdata/testmod1/go.mod",
+    "testdata/testmod2/go.mod",
+    "REUSE.toml"
+]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2023 SAP SE or an SAP affiliate company and IronCore contributors"
 SPDX-License-Identifier = "Apache-2.0"
