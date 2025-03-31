@@ -1,6 +1,6 @@
 module github.com/ironcore-dev/controller-utils
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/onsi/ginkgo/v2 v2.23.3
@@ -14,7 +14,7 @@ require (
 	k8s.io/apiserver v0.32.3
 	k8s.io/client-go v0.32.3
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
-	sigs.k8s.io/controller-runtime v0.20.3
+	sigs.k8s.io/controller-runtime v0.20.4
 	sigs.k8s.io/kustomize/api v0.19.0
 	sigs.k8s.io/kustomize/kyaml v0.19.0
 	sigs.k8s.io/yaml v1.4.0
