@@ -75,7 +75,7 @@ GOLANGCILINT ?= $(LOCALBIN)/golangci-lint
 ADDLICENSE_VERSION ?= v1.1.1
 GOIMPORTS_VERSION ?= v0.31.0
 MOCKGEN_VERSION ?= v0.5.0
-GOLANGCILINT_VERSION ?= v1.64
+GOLANGCILINT_VERSION ?= v2.0
 
 .PHONY: addlicense
 addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.
@@ -95,4 +95,4 @@ $(MOCKGEN): $(LOCALBIN)
 .PHONY: goimports
 golangci-lint: $(GOLANGCILINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCILINT): $(LOCALBIN)
-	test -s $(LOCALBIN)/golangci-lint || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCILINT_VERSION)
+	test -s $(LOCALBIN)/golangci-lint || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCILINT_VERSION)
