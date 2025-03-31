@@ -31,7 +31,7 @@ type BadList struct {
 
 func (b *BadList) DeepCopyObject() runtime.Object {
 	return &BadList{
-		*b.ListMeta.DeepCopy(),
+		*b.DeepCopy(),
 		b.TypeMeta,
 	}
 }

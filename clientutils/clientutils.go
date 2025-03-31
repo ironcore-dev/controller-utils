@@ -467,7 +467,7 @@ func setObject(dst, src client.Object) error {
 // IsOlderThan returns a function that determines whether an object is older than another.
 func IsOlderThan(obj client.Object) func(other client.Object) (bool, error) {
 	return func(other client.Object) (bool, error) {
-		return obj.GetCreationTimestamp().Time.After(other.GetCreationTimestamp().Time), nil
+		return obj.GetCreationTimestamp().After(other.GetCreationTimestamp().Time), nil
 	}
 }
 
