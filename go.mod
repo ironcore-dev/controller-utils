@@ -15,7 +15,7 @@ require (
 	k8s.io/client-go v0.33.1
 	k8s.io/utils v0.0.0-20250502105355-0f33e8f1c979
 	sigs.k8s.io/controller-runtime v0.21.0
-	sigs.k8s.io/kustomize/api v0.19.0
+	sigs.k8s.io/kustomize/api v0.20.0
 	sigs.k8s.io/kustomize/kyaml v0.20.0
 	sigs.k8s.io/yaml v1.5.0
 )
@@ -23,6 +23,7 @@ require (
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
+	github.com/carapace-sh/carapace-shlex v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -43,7 +44,6 @@ require (
 	github.com/google/gnostic-models v0.6.9 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20250602020802-c6617b811d0e // indirect
-	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
