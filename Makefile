@@ -37,8 +37,8 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: lint
-lint: golangci-lint ## Run golangci-lint on the code.
-	$(GOLANGCILINT) run ./...
+lint: golangci-lint ## Run golangci-lint linter
+	$(GOLANGCI_LINT) run
 
 .PHONY: check-license
 check-license: addlicense ## Check that every file has a license header present.
@@ -69,30 +69,46 @@ $(LOCALBIN):
 ADDLICENSE ?= $(LOCALBIN)/addlicense
 GOIMPORTS ?= $(LOCALBIN)/goimports
 MOCKGEN ?= $(LOCALBIN)/mockgen
-GOLANGCILINT ?= $(LOCALBIN)/golangci-lint
+GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
 ADDLICENSE_VERSION ?= v1.1.1
-GOIMPORTS_VERSION ?= v0.31.0
+GOIMPORTS_VERSION ?= v0.34.0
 MOCKGEN_VERSION ?= v0.5.2
-GOLANGCILINT_VERSION ?= v2.1
+GOLANGCI_LINT_VERSION ?= v2.1
 
 .PHONY: addlicense
 addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.
 $(ADDLICENSE): $(LOCALBIN)
-	test -s $(LOCALBIN)/addlicense || GOBIN=$(LOCALBIN) go install github.com/google/addlicense@$(ADDLICENSE_VERSION)
+	$(call go-install-tool,$(ADDLICENSE),github.com/google/addlicense,$(ADDLICENSE_VERSION))
 
 .PHONY: goimports
 goimports: $(GOIMPORTS) ## Download goimports locally if necessary.
 $(GOIMPORTS): $(LOCALBIN)
-	test -s $(LOCALBIN)/goimports || GOBIN=$(LOCALBIN) go install golang.org/x/tools/cmd/goimports@$(GOIMPORTS_VERSION)
+	$(call go-install-tool,$(GOIMPORTS),golang.org/x/tools/cmd/goimports,$(GOIMPORTS_VERSION))
 
 .PHONY: mockgen
 mockgen: $(MOCKGEN) ## Download mockgen locally if necessary.
 $(MOCKGEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/mockgen || GOBIN=$(LOCALBIN) go install go.uber.org/mock/mockgen@$(MOCKGEN_VERSION)
+	$(call go-install-tool,$(MOCKGEN),go.uber.org/mock/mockgen,$(MOCKGEN_VERSION))
 
-.PHONY: goimports
-golangci-lint: $(GOLANGCILINT) ## Download golangci-lint locally if necessary.
-$(GOLANGCILINT): $(LOCALBIN)
-	test -s $(LOCALBIN)/golangci-lint || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCILINT_VERSION)
+.PHONY: golangci-lint
+golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
+$(GOLANGCI_LINT): $(LOCALBIN)
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
+
+# go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
+# $1 - target path with name of binary
+# $2 - package url which can be installed
+# $3 - specific version of package
+define go-install-tool
+@[ -f "$(1)-$(3)" ] || { \
+set -e; \
+package=$(2)@$(3) ;\
+echo "Downloading $${package}" ;\
+rm -f $(1) || true ;\
+GOBIN=$(LOCALBIN) go install $${package} ;\
+mv $(1) $(1)-$(3) ;\
+} ;\
+ln -sf $(1)-$(3) $(1)
+endef
