@@ -5,8 +5,6 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    reviewers:
-      - "ironcore-dev/core"
     # Ignore K8 packages as these are done manually
     ignore:
       - dependency-name: "k8s.io/api"
@@ -22,5 +20,3 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    reviewers:
-      - "ironcore-dev/core"
