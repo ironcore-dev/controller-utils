@@ -16,7 +16,7 @@ require (
 	k8s.io/utils v0.0.0-20250502105355-0f33e8f1c979
 	sigs.k8s.io/controller-runtime v0.21.0
 	sigs.k8s.io/kustomize/api v0.20.0
-	sigs.k8s.io/kustomize/kyaml v0.20.0
+	sigs.k8s.io/kustomize/kyaml v0.20.1
 	sigs.k8s.io/yaml v1.5.0
 )
 
