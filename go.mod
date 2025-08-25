@@ -6,7 +6,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
 	github.com/spf13/pflag v1.0.7
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	go.uber.org/mock v0.5.2
 	k8s.io/api v0.33.3
 	k8s.io/apiextensions-apiserver v0.33.3
