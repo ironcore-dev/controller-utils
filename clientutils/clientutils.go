@@ -7,6 +7,7 @@ package clientutils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -19,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -285,15 +287,15 @@ func GetMultiple(ctx context.Context, c client.Client, reqs []GetRequest) error 
 	return nil
 }
 
-// apply is a PatchProvider always providing client.Apply.
+// apply is a PatchProvider always providing a server-side apply patch.
 type apply struct{}
 
 // PatchFor implements PatchProvider.
 func (a apply) PatchFor(obj client.Object) client.Patch {
-	return client.Apply
+	return applyPatch{}
 }
 
-// ApplyAll provides client.Apply for any given object.
+// ApplyAll provides a server-side apply patch for any given object.
 var ApplyAll = apply{}
 
 // PatchProvider retrieves a patch for any given object.
@@ -305,6 +307,17 @@ type PatchProvider interface {
 type PatchRequest struct {
 	Object client.Object
 	Patch  client.Patch
+}
+
+// applyPatch uses server-side apply semantics without relying on the deprecated client.Apply constant.
+type applyPatch struct{}
+
+func (applyPatch) Type() types.PatchType {
+	return types.ApplyPatchType
+}
+
+func (applyPatch) Data(obj client.Object) ([]byte, error) {
+	return json.Marshal(obj)
 }
 
 // PatchRequestFromObjectAndProvider is a shorthand to create a PatchRequest using a client.Object and PatchProvider.

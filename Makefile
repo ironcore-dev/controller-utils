@@ -73,9 +73,9 @@ GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
 ADDLICENSE_VERSION ?= v1.1.1
-GOIMPORTS_VERSION ?= v0.34.0
+GOIMPORTS_VERSION ?= v0.41.0
 MOCKGEN_VERSION ?= v0.6.0
-GOLANGCI_LINT_VERSION ?= v2.5
+GOLANGCI_LINT_VERSION ?= v2.11
 
 .PHONY: addlicense
 addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.

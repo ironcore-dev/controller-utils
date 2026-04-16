@@ -393,19 +393,19 @@ var _ = Describe("Clientutils", func() {
 	})
 
 	Describe("ApplyAll", func() {
-		It("should return client.Apply for any object", func() {
-			Expect(ApplyAll.PatchFor(cm)).To(Equal(client.Apply))
-			Expect(ApplyAll.PatchFor(secret)).To(Equal(client.Apply))
-			Expect(ApplyAll.PatchFor(uPod)).To(Equal(client.Apply))
+		It("should return an apply patch for any object", func() {
+			Expect(ApplyAll.PatchFor(cm).Type()).To(Equal(types.ApplyPatchType))
+			Expect(ApplyAll.PatchFor(secret).Type()).To(Equal(types.ApplyPatchType))
+			Expect(ApplyAll.PatchFor(uPod).Type()).To(Equal(types.ApplyPatchType))
 		})
 	})
 
 	Describe("PatchRequestFromObjectAndProvider", func() {
 		It("should create a patch request from the given object and provider", func() {
-			patchProvider.EXPECT().PatchFor(cm).Return(client.Apply)
+			patchProvider.EXPECT().PatchFor(cm).Return(ApplyAll.PatchFor(cm))
 			Expect(PatchRequestFromObjectAndProvider(cm, patchProvider)).To(Equal(PatchRequest{
 				Object: cm,
-				Patch:  client.Apply,
+				Patch:  ApplyAll.PatchFor(cm),
 			}))
 		})
 	})
@@ -417,19 +417,19 @@ var _ = Describe("Clientutils", func() {
 
 		It("should create patch requests from the given objects and provider", func() {
 			gomock.InOrder(
-				patchProvider.EXPECT().PatchFor(cm).Return(client.Apply),
-				patchProvider.EXPECT().PatchFor(secret).Return(client.Apply),
+				patchProvider.EXPECT().PatchFor(cm).Return(ApplyAll.PatchFor(cm)),
+				patchProvider.EXPECT().PatchFor(secret).Return(ApplyAll.PatchFor(secret)),
 			)
 
 			Expect(PatchRequestsFromObjectsAndProvider([]client.Object{cm, secret}, patchProvider)).To(Equal(
 				[]PatchRequest{
 					{
 						Object: cm,
-						Patch:  client.Apply,
+						Patch:  ApplyAll.PatchFor(cm),
 					},
 					{
 						Object: secret,
-						Patch:  client.Apply,
+						Patch:  ApplyAll.PatchFor(secret),
 					},
 				},
 			))
@@ -445,11 +445,11 @@ var _ = Describe("Clientutils", func() {
 			reqs := []PatchRequest{
 				{
 					Object: cm,
-					Patch:  client.Apply,
+					Patch:  ApplyAll.PatchFor(cm),
 				},
 				{
 					Object: secret,
-					Patch:  client.Apply,
+					Patch:  ApplyAll.PatchFor(secret),
 				},
 			}
 			Expect(ObjectsFromPatchRequests(reqs)).To(Equal([]client.Object{cm, secret}))
@@ -461,15 +461,15 @@ var _ = Describe("Clientutils", func() {
 			reqs := []PatchRequest{
 				{
 					Object: cm,
-					Patch:  client.Apply,
+					Patch:  ApplyAll.PatchFor(cm),
 				},
 				{
 					Object: secret,
-					Patch:  client.Apply,
+					Patch:  ApplyAll.PatchFor(secret),
 				},
 			}
 			someErr := fmt.Errorf("some error")
-			c.EXPECT().Patch(ctx, cm, client.Apply).Return(someErr)
+			c.EXPECT().Patch(ctx, cm, ApplyAll.PatchFor(cm)).Return(someErr)
 
 			err := PatchMultiple(ctx, c, reqs)
 			Expect(err).To(HaveOccurred())
@@ -480,16 +480,16 @@ var _ = Describe("Clientutils", func() {
 			reqs := []PatchRequest{
 				{
 					Object: cm,
-					Patch:  client.Apply,
+					Patch:  ApplyAll.PatchFor(cm),
 				},
 				{
 					Object: secret,
-					Patch:  client.Apply,
+					Patch:  ApplyAll.PatchFor(secret),
 				},
 			}
 			gomock.InOrder(
-				c.EXPECT().Patch(ctx, cm, client.Apply),
-				c.EXPECT().Patch(ctx, secret, client.Apply),
+				c.EXPECT().Patch(ctx, cm, ApplyAll.PatchFor(cm)),
+				c.EXPECT().Patch(ctx, secret, ApplyAll.PatchFor(secret)),
 			)
 			Expect(PatchMultiple(ctx, c, reqs)).To(Succeed())
 		})
@@ -504,10 +504,10 @@ var _ = Describe("Clientutils", func() {
 		It("should abort and return any error from patching", func() {
 			someErr := fmt.Errorf("some error")
 			gomock.InOrder(
-				patchProvider.EXPECT().PatchFor(testdata.UnstructuredSecret()).Return(client.Apply),
-				patchProvider.EXPECT().PatchFor(testdata.UnstructuredConfigMap()).Return(client.Apply),
+				patchProvider.EXPECT().PatchFor(testdata.UnstructuredSecret()).Return(ApplyAll.PatchFor(testdata.UnstructuredSecret())),
+				patchProvider.EXPECT().PatchFor(testdata.UnstructuredConfigMap()).Return(ApplyAll.PatchFor(testdata.UnstructuredConfigMap())),
 
-				c.EXPECT().Patch(ctx, testdata.UnstructuredSecret(), client.Apply).Return(someErr),
+				c.EXPECT().Patch(ctx, testdata.UnstructuredSecret(), ApplyAll.PatchFor(testdata.UnstructuredSecret())).Return(someErr),
 			)
 
 			_, err := PatchMultipleFromFile(ctx, c, objectsPath, patchProvider)
@@ -517,11 +517,11 @@ var _ = Describe("Clientutils", func() {
 
 		It("should patch multiple objects from file", func() {
 			gomock.InOrder(
-				patchProvider.EXPECT().PatchFor(testdata.UnstructuredSecret()).Return(client.Apply),
-				patchProvider.EXPECT().PatchFor(testdata.UnstructuredConfigMap()).Return(client.Apply),
+				patchProvider.EXPECT().PatchFor(testdata.UnstructuredSecret()).Return(ApplyAll.PatchFor(testdata.UnstructuredSecret())),
+				patchProvider.EXPECT().PatchFor(testdata.UnstructuredConfigMap()).Return(ApplyAll.PatchFor(testdata.UnstructuredConfigMap())),
 
-				c.EXPECT().Patch(ctx, testdata.UnstructuredSecret(), client.Apply),
-				c.EXPECT().Patch(ctx, testdata.UnstructuredConfigMap(), client.Apply),
+				c.EXPECT().Patch(ctx, testdata.UnstructuredSecret(), ApplyAll.PatchFor(testdata.UnstructuredSecret())),
+				c.EXPECT().Patch(ctx, testdata.UnstructuredConfigMap(), ApplyAll.PatchFor(testdata.UnstructuredConfigMap())),
 			)
 
 			objs, err := PatchMultipleFromFile(ctx, c, objectsPath, patchProvider)
