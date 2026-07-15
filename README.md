@@ -1,7 +1,6 @@
 # controller-utils
 
 [![REUSE status](https://api.reuse.software/badge/github.com/ironcore-dev/controller-utils)](https://api.reuse.software/info/github.com/ironcore-dev/controller-utils)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ironcore-dev/controller-utils)](https://goreportcard.com/report/github.com/ironcore-dev/controller-utils)
 [![Go Reference](https://pkg.go.dev/badge/github.com/ironcore-dev/controller-utils.svg)](https://pkg.go.dev/github.com/ironcore-dev/controller-utils)
 [![Test](https://github.com/ironcore-dev/controller-utils/actions/workflows/test.yml/badge.svg)](https://github.com/ironcore-dev/controller-utils/actions/workflows/test.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://makeapullrequest.com)
