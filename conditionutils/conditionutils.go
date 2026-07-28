@@ -43,7 +43,7 @@ func enforceStruct(cond interface{}) (reflect.Value, error) {
 
 func enforcePtrToStruct(cond interface{}) (reflect.Value, error) {
 	v := reflect.ValueOf(cond)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return reflect.Value{}, fmt.Errorf("type %T is not a pointer to a struct", cond)
 	}
 	v = v.Elem()
@@ -69,7 +69,7 @@ func enforceStructSlice(condSlice interface{}) (sliceV reflect.Value, structType
 
 func enforcePtrToStructSlice(condSlicePtr interface{}) (sliceV reflect.Value, structType reflect.Type, err error) {
 	v := reflect.ValueOf(condSlicePtr)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return reflect.Value{}, nil, fmt.Errorf("type %T is not a pointer to a slice of structs", condSlicePtr)
 	}
 
@@ -99,7 +99,7 @@ func getAndConvertField(v reflect.Value, name string, into interface{}) error {
 	}
 
 	fType := f.Type()
-	if fType.Kind() == reflect.Ptr {
+	if fType.Kind() == reflect.Pointer {
 		fType = fType.Elem()
 	}
 
@@ -133,7 +133,7 @@ func setFieldConverted(v reflect.Value, name string, newValue interface{}) error
 
 	fType := f.Type()
 	var isPtr bool
-	if fType.Kind() == reflect.Ptr {
+	if fType.Kind() == reflect.Pointer {
 		isPtr = true
 		fType = fType.Elem()
 	}

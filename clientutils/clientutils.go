@@ -158,7 +158,7 @@ func (s *GetRequestSet) typedKey(req GetRequest) getRequestTypedKey {
 	// Taken from runtime.Scheme.AddKnownTypes.
 	// In this case it's fine to panic as we distinguish between typed and unstructured
 	// objects beforehand.
-	if t.Kind() != reflect.Ptr {
+	if t.Kind() != reflect.Pointer {
 		panic("All types must be pointers to structs")
 	}
 	t = t.Elem()

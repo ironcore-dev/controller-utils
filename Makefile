@@ -75,7 +75,7 @@ GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 ADDLICENSE_VERSION ?= v1.1.1
 GOIMPORTS_VERSION ?= v0.41.0
 MOCKGEN_VERSION ?= v0.6.0
-GOLANGCI_LINT_VERSION ?= v2.11
+GOLANGCI_LINT_VERSION ?= v2.12
 
 .PHONY: addlicense
 addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.
@@ -98,6 +98,7 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
+# Note: All paths are quoted to work in directories containing spaces or parentheses.
 # $1 - target path with name of binary
 # $2 - package url which can be installed
 # $3 - specific version of package
@@ -106,9 +107,9 @@ define go-install-tool
 set -e; \
 package=$(2)@$(3) ;\
 echo "Downloading $${package}" ;\
-rm -f $(1) || true ;\
-GOBIN=$(LOCALBIN) go install $${package} ;\
-mv $(1) $(1)-$(3) ;\
+rm -f "$(1)" || true ;\
+GOBIN="$(LOCALBIN)" go install "$${package}" ;\
+mv "$(1)" "$(1)-$(3)" ;\
 } ;\
-ln -sf $(1)-$(3) $(1)
+ln -sf "$(1)-$(3)" "$(1)"
 endef
