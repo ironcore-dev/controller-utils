@@ -21,6 +21,7 @@ import (
 	meta "k8s.io/apimachinery/pkg/api/meta"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
+	cacheapi "sigs.k8s.io/controller-runtime/pkg/cache/cacheapi"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -311,7 +312,7 @@ func (m *MockFieldIndexer) EXPECT() *MockFieldIndexerMockRecorder {
 }
 
 // IndexField mocks base method.
-func (m *MockFieldIndexer) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+func (m *MockFieldIndexer) IndexField(ctx context.Context, obj cacheapi.Object, field string, extractValue cacheapi.IndexerFunc) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IndexField", ctx, obj, field, extractValue)
 	ret0, _ := ret[0].(error)
