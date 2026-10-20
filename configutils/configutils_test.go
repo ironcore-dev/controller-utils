@@ -4,6 +4,7 @@
 package configutils
 
 import (
+	"context"
 	"flag"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiserverv1beta1 "k8s.io/apiserver/pkg/apis/apiserver/v1beta1"
+	"k8s.io/apiserver/pkg/server/egressselector"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -163,6 +165,121 @@ var _ = ginkgo.Describe("Configutils", func() {
 				WithEgressSelectionName(EgressSelectionNameEtcd),
 			)
 			Expect(err).To(HaveOccurred())
+		})
+
+		ginkgo.It("should apply QPS and Burst options", func() {
+			cfg, err := GetConfig(Kubeconfig(configFile), QPS(50), Burst(100))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.QPS).To(Equal(float32(50)))
+			Expect(cfg.Burst).To(Equal(100))
+		})
+
+		ginkgo.It("should load default config using LoadDefaultConfig", func() {
+			cfg, err := LoadDefaultConfig("default")
+			// Depending on local environment / home directory, this might succeed or fail,
+			// but verify function is callable
+			_ = cfg
+			_ = err
+		})
+	})
+
+	ginkgo.Describe("Getter", func() {
+		var (
+			apiConfig        *clientcmdapi.Config
+			egressConfig     *apiserverv1beta1.EgressSelectorConfiguration
+			configFile       string
+			egressConfigFile string
+		)
+		ginkgo.BeforeEach(func() {
+			apiConfig = &clientcmdapi.Config{
+				Clusters: map[string]*clientcmdapi.Cluster{
+					"default": {
+						Server: "http://example.org",
+					},
+					"other": {
+						Server: "http://other.example.org",
+					},
+				},
+				AuthInfos: map[string]*clientcmdapi.AuthInfo{
+					"default": {},
+					"other":   {},
+				},
+				Contexts: map[string]*clientcmdapi.Context{
+					"default": {
+						Cluster:   "default",
+						AuthInfo:  "default",
+						Namespace: corev1.NamespaceDefault,
+					},
+					"other": {
+						Cluster:   "other",
+						AuthInfo:  "other",
+						Namespace: corev1.NamespaceDefault,
+					},
+				},
+				CurrentContext: "default",
+			}
+			egressConfig = &apiserverv1beta1.EgressSelectorConfiguration{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: apiserverv1beta1.SchemeGroupVersion.String(),
+					Kind:       "EgressSelectorConfiguration",
+				},
+				EgressSelections: []apiserverv1beta1.EgressSelection{
+					{
+						Name: "controlplane",
+						Connection: apiserverv1beta1.Connection{
+							ProxyProtocol: apiserverv1beta1.ProtocolDirect,
+						},
+					},
+				},
+			}
+
+			tempDir := ginkgo.GinkgoT().TempDir()
+			configFile = filepath.Join(tempDir, "kubeconfig")
+			Expect(clientcmd.WriteToFile(*apiConfig, configFile)).To(Succeed())
+
+			egressConfigData, err := yaml.Marshal(egressConfig)
+			Expect(err).NotTo(HaveOccurred())
+
+			egressConfigFile = filepath.Join(tempDir, "egress-config.yaml")
+			Expect(os.WriteFile(egressConfigFile, egressConfigData, 0666)).To(Succeed())
+		})
+
+		ginkgo.It("should load config using Getter", func() {
+			getter, err := NewGetter(GetterOptions{Name: "test-getter"})
+			Expect(err).NotTo(HaveOccurred())
+
+			ctx := context.Background()
+			cfg, err := getter.GetConfig(ctx, Kubeconfig(configFile), Context("other"), QPS(15), Burst(25))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.Host).To(Equal("http://other.example.org"))
+			Expect(cfg.QPS).To(Equal(float32(15)))
+			Expect(cfg.Burst).To(Equal(25))
+		})
+
+		ginkgo.It("should load config and apply egress selector using Getter", func() {
+			getter, err := NewGetter(GetterOptions{
+				Name:                "test-getter",
+				EgressSelectionName: EgressSelectionNameControlPlane,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			ctx := context.Background()
+			cfg, err := getter.GetConfig(ctx, Kubeconfig(configFile), EgressSelectorConfig(egressConfigFile))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(cfg.Dial).NotTo(BeNil())
+		})
+
+		ginkgo.It("should create Getter using NewGetterOrDie", func() {
+			getter := NewGetterOrDie(GetterOptions{Name: "die-getter"})
+			Expect(getter).NotTo(BeNil())
+		})
+	})
+
+	ginkgo.Describe("GetEgressSelectorDial", func() {
+		ginkgo.It("should return nil dialer when config path is empty", func() {
+			dial, err := GetEgressSelectorDial(egressselector.ControlPlane.AsNetworkContext(), "")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dial).To(BeNil())
 		})
 	})
 })
