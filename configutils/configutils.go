@@ -4,12 +4,15 @@
 package configutils
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
 
+	"github.com/go-logr/logr"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apiserver/pkg/server/egressselector"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -60,6 +63,10 @@ type GetConfigOptions struct {
 	// EgressSelectionName is the name of the egress configuration to use.
 	// Defaults to EgressSelectionNameControlPlane.
 	EgressSelectionName EgressSelectionName
+	// QPS indicates the maximum QPS to the master from this client.
+	QPS float32
+	// Burst maximum burst for throttle.
+	Burst int
 }
 
 // ApplyToGetConfig implements GetConfigOption.
@@ -76,9 +83,15 @@ func (o *GetConfigOptions) ApplyToGetConfig(o2 *GetConfigOptions) {
 	if o.EgressSelectionName != "" {
 		o2.EgressSelectionName = o.EgressSelectionName
 	}
+	if o.QPS > 0 {
+		o2.QPS = o.QPS
+	}
+	if o.Burst > 0 {
+		o2.Burst = o.Burst
+	}
 }
 
-// ApplyOptions applies all GetConfigOption tro this GetConfigOptions.
+// ApplyOptions applies all GetConfigOption to this GetConfigOptions.
 func (o *GetConfigOptions) ApplyOptions(opts []GetConfigOption) {
 	for _, opt := range opts {
 		opt.ApplyToGetConfig(o)
@@ -104,15 +117,49 @@ func (c Context) ApplyToGetConfig(o *GetConfigOptions) {
 // EgressSelectorConfig allows specifying the path to an egress selector config to use.
 type EgressSelectorConfig string
 
+// ApplyToGetConfig implements GetConfigOption.
 func (c EgressSelectorConfig) ApplyToGetConfig(o *GetConfigOptions) {
 	o.EgressSelectorConfig = string(c)
 }
 
+// WithEgressSelectionName allows specifying the egress selection name to use.
 type WithEgressSelectionName EgressSelectionName
 
 // ApplyToGetConfig implements GetConfigOption.
 func (w WithEgressSelectionName) ApplyToGetConfig(o *GetConfigOptions) {
 	o.EgressSelectionName = EgressSelectionName(w)
+}
+
+// QPS allows specifying the maximum QPS to the master from this client.
+type QPS float32
+
+// ApplyToGetConfig implements GetConfigOption.
+func (q QPS) ApplyToGetConfig(o *GetConfigOptions) {
+	o.QPS = float32(q)
+}
+
+// Burst allows specifying the maximum burst for throttle.
+type Burst int
+
+// ApplyToGetConfig implements GetConfigOption.
+func (b Burst) ApplyToGetConfig(o *GetConfigOptions) {
+	o.Burst = int(b)
+}
+
+// WithQPS allows specifying the maximum QPS to the master from this client.
+type WithQPS float32
+
+// ApplyToGetConfig implements GetConfigOption.
+func (q WithQPS) ApplyToGetConfig(o *GetConfigOptions) {
+	o.QPS = float32(q)
+}
+
+// WithBurst allows specifying the maximum burst for throttle.
+type WithBurst int
+
+// ApplyToGetConfig implements GetConfigOption.
+func (b WithBurst) ApplyToGetConfig(o *GetConfigOptions) {
+	o.Burst = int(b)
 }
 
 // GetConfigOption are options to a GetConfig call.
@@ -152,6 +199,11 @@ func setGetConfigOptionsDefaults(o *GetConfigOptions) {
 	}
 }
 
+// LoadDefaultConfig loads the default Kubernetes configuration for the specified context.
+func LoadDefaultConfig(context string) (*rest.Config, error) {
+	return loadConfig("", context)
+}
+
 // GetConfig creates a *rest.Config for talking to a Kubernetes API server.
 // Kubeconfig / the '--kubeconfig' flag instruct to use the kubeconfig file at that location.
 // Otherwise, will assume running in cluster and use the cluster provided kubeconfig.
@@ -189,6 +241,13 @@ func GetConfig(opts ...GetConfigOption) (*rest.Config, error) {
 		return nil, fmt.Errorf("error applying egress selector: %w", err)
 	}
 
+	if o.QPS > 0 {
+		cfg.QPS = o.QPS
+	}
+	if o.Burst > 0 {
+		cfg.Burst = o.Burst
+	}
+
 	return cfg, nil
 }
 
@@ -219,6 +278,33 @@ func loadConfig(kubeconfig, context string) (*rest.Config, error) {
 	return loadConfigWithContext("", loadingRules, context)
 }
 
+// GetEgressSelectorDial returns a dial function for the given network context and egress selector config path.
+func GetEgressSelectorDial(networkContext egressselector.NetworkContext, egressSelectorConfig string) (utilnet.DialFunc, error) {
+	if egressSelectorConfig == "" {
+		return nil, nil
+	}
+
+	egressSelectorCfg, err := egressselector.ReadEgressSelectorConfiguration(egressSelectorConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error reading egress selector configuration: %w", err)
+	}
+
+	egressSelector, err := egressselector.NewEgressSelector(egressSelectorCfg)
+	if err != nil {
+		return nil, fmt.Errorf("error creating egress selector: %w", err)
+	}
+
+	dial, err := egressSelector.Lookup(networkContext)
+	if err != nil {
+		return nil, fmt.Errorf("error looking up network context %s: %w", networkContext.EgressSelectionName.String(), err)
+	}
+	if dial == nil {
+		return nil, fmt.Errorf("no dialer for network context %s", networkContext.EgressSelectionName.String())
+	}
+
+	return dial, nil
+}
+
 func applyEgressSelector(egressSelectorConfig string, egressSelectionName EgressSelectionName, cfg *rest.Config) error {
 	if egressSelectorConfig == "" {
 		return nil
@@ -229,22 +315,9 @@ func applyEgressSelector(egressSelectorConfig string, egressSelectionName Egress
 		return fmt.Errorf("error obtaining network context: %w", err)
 	}
 
-	egressSelectorCfg, err := egressselector.ReadEgressSelectorConfiguration(egressSelectorConfig)
+	dial, err := GetEgressSelectorDial(networkContext, egressSelectorConfig)
 	if err != nil {
-		return fmt.Errorf("error reading egress selector configuration: %w", err)
-	}
-
-	egressSelector, err := egressselector.NewEgressSelector(egressSelectorCfg)
-	if err != nil {
-		return fmt.Errorf("error creating egress selector: %w", err)
-	}
-
-	dial, err := egressSelector.Lookup(networkContext)
-	if err != nil {
-		return fmt.Errorf("error looking up network context %s: %w", networkContext.EgressSelectionName.String(), err)
-	}
-	if dial == nil {
-		return fmt.Errorf("no dialer for network context %s", networkContext.EgressSelectionName.String())
+		return err
 	}
 
 	cfg.Dial = dial
@@ -263,4 +336,110 @@ func GetConfigOrDie(opts ...GetConfigOption) *rest.Config {
 		os.Exit(1)
 	}
 	return config
+}
+
+// Getter is a lightweight config getter that only needs a *rest.Config.
+type Getter struct {
+	name           string
+	logConstructor func() logr.Logger
+	networkContext egressselector.NetworkContext
+}
+
+// GetterOptions are options for creating a Getter.
+type GetterOptions struct {
+	Name                string
+	LogConstructor      func() logr.Logger
+	NetworkContext      egressselector.NetworkContext
+	EgressSelectionName EgressSelectionName
+}
+
+// NewGetter creates a new Getter from the given options.
+func NewGetter(opts GetterOptions) (*Getter, error) {
+	logConstructor := opts.LogConstructor
+	if logConstructor == nil {
+		l := ctrl.Log.WithName("client").WithName("config").WithValues("getter", opts.Name)
+		logConstructor = func() logr.Logger { return l }
+	}
+
+	networkContext := opts.NetworkContext
+	if networkContext == (egressselector.NetworkContext{}) && opts.EgressSelectionName != "" {
+		var err error
+		networkContext, err = opts.EgressSelectionName.NetworkContext()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &Getter{
+		name:           opts.Name,
+		logConstructor: logConstructor,
+		networkContext: networkContext,
+	}, nil
+}
+
+// NewGetterOrDie creates a new Getter and logs/exits on error.
+func NewGetterOrDie(opts GetterOptions) *Getter {
+	getter, err := NewGetter(opts)
+	if err != nil {
+		log.Error(err, "unable to create getter")
+		os.Exit(1)
+	}
+	return getter
+}
+
+// GetConfig returns a *rest.Config based on the given options.
+func (g *Getter) GetConfig(ctx context.Context, opts ...GetConfigOption) (*rest.Config, error) {
+	o := &GetConfigOptions{}
+	o.ApplyOptions(opts)
+	setGetConfigOptionsDefaults(o)
+
+	g.logConstructor().Info("Getting config")
+
+	var kubeconfig string
+	if o.Kubeconfig != nil {
+		kubeconfig = *o.Kubeconfig
+	} else if f := flag.CommandLine.Lookup("kubeconfig"); f != nil {
+		kubeconfig = f.Value.String()
+	}
+
+	cfg, err := loadConfig(kubeconfig, o.Context)
+	if err != nil {
+		return nil, fmt.Errorf("error loading config: %w", err)
+	}
+
+	networkContext := g.networkContext
+	if networkContext == (egressselector.NetworkContext{}) {
+		var err error
+		networkContext, err = o.EgressSelectionName.NetworkContext()
+		if err != nil {
+			return nil, fmt.Errorf("error obtaining network context: %w", err)
+		}
+	}
+
+	if o.EgressSelectorConfig != "" {
+		dialFunc, err := GetEgressSelectorDial(networkContext, o.EgressSelectorConfig)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Dial = dialFunc
+	}
+
+	if o.QPS > 0 {
+		cfg.QPS = o.QPS
+	}
+	if o.Burst > 0 {
+		cfg.Burst = o.Burst
+	}
+
+	return cfg, nil
+}
+
+// GetConfigOrDie returns a *rest.Config based on the given options, or logs/exits on error.
+func (g *Getter) GetConfigOrDie(ctx context.Context, opts ...GetConfigOption) *rest.Config {
+	cfg, err := g.GetConfig(ctx, opts...)
+	if err != nil {
+		g.logConstructor().Error(err, "unable to get kubeconfig")
+		os.Exit(1)
+	}
+	return cfg
 }
